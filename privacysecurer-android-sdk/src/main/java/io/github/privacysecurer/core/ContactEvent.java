@@ -17,7 +17,7 @@ import io.github.privacysecurer.core.exceptions.PSException;
 import io.github.privacysecurer.core.purposes.Purpose;
 
 /**
- * Contact related events, used for setting parameters and providing event processing methods.
+ * Contact related events, used for setting event parameters and providing processing methods.
  */
 public class ContactEvent extends Event {
     /**
@@ -32,9 +32,8 @@ public class ContactEvent extends Event {
      */
     private String eventType;
     /**
-     * The occurrence times for periodic events, e.g. for the Audio_Check_Average_Loudness_Periodically event,
-     * setRecurrence(2) means that if the average loudness is higher than the threshold twice, the programming model
-     * will stop monitoring the event.
+     * The occurrence times for periodic events, e.g. in the event to monitor incoming unwanted calls,
+     * setRecurrence(2) means that if an unwanted caller calls twice, the API will stop monitoring the event.
      */
     private Integer recurrence;
     /**
@@ -258,6 +257,16 @@ public class ContactEvent extends Event {
     }
 
     @Override
+    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
+
+    }
+
+    @Override
+    public void addPrecisionConstraints(String lobatPrecision) {
+
+    }
+
+    @Override
     public void handle(Context context, final PSCallback psCallback) {
         UQI uqi = new UQI(context);
         Boolean booleanFlag = null;
@@ -274,30 +283,33 @@ public class ContactEvent extends Event {
                 periodicEvent = false;
                 boolean contactFlag = false;
 
-
                 try {
                     List<List<String>> contactEmails = uqi.getData(Contact.getAll(), Purpose.UTILITY("Listen to contact emails in an existing list."))
                             .asList(Contact.EMAILS);
-                    for (int i=0; i<contactEmails.size(); i++) {
-                        for (int j=0; j<contactEmails.get(i).size(); j++) {
-                            if (lists == null) {
-                                Log.d("Log", "Please provide email lists, it's null now.");
-                            }
-                            for (String email: lists) {
-                                if (contactEmails.get(i).get(j).equals(email)) {
-                                    contactFlag = true;
-                                    matchEmails.add(contactEmails.get(i).get(j));
+
+                    if (contactEmails.size() != 0) {
+                        for (int i = 0; i < contactEmails.size(); i++) {
+                            for (int j = 0; j < contactEmails.get(i).size(); j++) {
+                                if (lists == null) {
+                                    Log.d("Log", "Please provide email lists, it's null now.");
+                                }
+                                for (String email : lists) {
+                                    if (contactEmails.get(i).get(j).equals(email)) {
+                                        contactFlag = true;
+                                        matchEmails.add(contactEmails.get(i).get(j));
+                                    }
                                 }
                             }
-                            //Log.d("Log", contactEmails.get(i).get(j));
                         }
-                    }
-                    if (contactFlag) {
-                        Log.d("Log", "There are contact emails in an existing list.");
-                        psCallback.setEmails(matchEmails);
-                        setSatisfyCond();
+                        if (contactFlag) {
+                            Log.d("Log", "Contact emails in the existing list.");
+                            psCallback.setEmails(matchEmails);
+                            setSatisfyCond();
+                        } else {
+                            Log.d("Log", "Event hasn't happened yet.");
+                        }
                     } else {
-                        Log.d("Log", "There aren't contact emails in an existing list.");
+                        Log.d("Log", "No emails in contact lists, please check it.");
                     }
                 } catch (PSException e) {
                     e.printStackTrace();
@@ -317,7 +329,6 @@ public class ContactEvent extends Event {
                                 counter++;
                                 satisfyCond = false;
                                 if (recurrence != null && counter > recurrence) {
-                                    //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                     pStreamProvider.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Unwanted incoming calls.");
@@ -328,30 +339,33 @@ public class ContactEvent extends Event {
                         });
                 break;
 
-            case Event.Call_Unwanted_Call_Logs:
+            case Event.Call_Logs_Checking:
                 periodicEvent = false;
+                boolean callFlag = false;
 
+                List<Item> items;
+                List<Item> resultItems = new ArrayList<>();
                 try {
-                    list = uqi.getData(Call.getLogs(), Purpose.UTILITY("Listen to contact call event."))
-                            .setField("callFlag", CallOperators.unwantedCall(Call.CONTACT, caller))
-                            .asList("callFlag");
+                    items = uqi.getData(Call.getLogs(), Purpose.UTILITY("Listen to call log event."))
+                            .asList();
+                    for (Item item : items) {
+                        if (item.containsField(Call.CONTACT)) {
+                            if (item.getAsString(Call.CONTACT).equals(caller)) {
+                                callFlag = true;
+                                resultItems.add(item);
+                            }
+                        }
+                    }
                 } catch (PSException e) {
                     e.printStackTrace();
                 }
-                Boolean tempBoolean = list.get(0);
-                for (Boolean l:list) {
-                    booleanFlag = Boolean.valueOf(l.booleanValue() || tempBoolean.booleanValue());
-                }
-                if (booleanFlag != null) {
-                    if (booleanFlag) {
-                        Log.d("Log", "There are unwanted calls from logs.");
-                        setSatisfyCond();
-                    }
-                    else
-                        Log.d("Log", "There aren't unwanted calls from logs.");
-                } else {
-                    Log.d("Log", "There are no call logs.");
-                }
+
+                if (callFlag) {
+                    Log.d("Log", "Unwanted records from call logs.");
+                    psCallback.setCallRecords(resultItems);
+                    setSatisfyCond();
+                } else
+                    Log.d("Log", "Event hasn't happened yet.");
                 break;
 
             case Event.Call_In_Blacklist:
@@ -367,10 +381,9 @@ public class ContactEvent extends Event {
                                 counter++;
                                 satisfyCond = false;
                                 if (recurrence != null && counter > recurrence) {
-                                    //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                     pStreamProvider1.isCancelled = true;
                                 } else {
-                                    Log.d("Log", "The incoming phone is in the blacklist.");
+                                    Log.d("Log", "Incoming call in the blacklist.");
                                     psCallback.setCaller(input);
                                     setSatisfyCond();
                                 }
@@ -405,10 +418,9 @@ public class ContactEvent extends Event {
                                     counter++;
                                     satisfyCond = false;
                                     if (recurrence != null && counter > recurrence) {
-                                        //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                         pStreamProvider2.isCancelled = true;
                                     } else {
-                                        Log.d("Log", "The incoming phone is from contact lists.");
+                                        Log.d("Log", "Incoming call from contact lists.");
                                         psCallback.setCaller(input);
                                         setSatisfyCond();
                                     }
@@ -432,7 +444,6 @@ public class ContactEvent extends Event {
                                 counter++;
                                 satisfyCond = false;
                                 if (recurrence != null && counter > recurrence) {
-                                    //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                     pStreamProvider3.isCancelled = true;
                                 } else {
                                     Log.d("Log", "New calls arrive.");
@@ -521,5 +532,6 @@ public class ContactEvent extends Event {
                 setSatisfyCond();
             }
         }
+
     }
 }

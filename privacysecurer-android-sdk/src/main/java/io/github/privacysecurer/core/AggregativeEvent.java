@@ -231,6 +231,17 @@ public class AggregativeEvent extends Event {
     }
 
     @Override
+    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
+
+    }
+
+    @Override
+    public void addPrecisionConstraints(String lobatPrecision) {
+
+    }
+
+
+    @Override
     public void handle(Context context, PSCallback psCallback) {
          /*
          * Deal with logic 'and' operation for multiple events

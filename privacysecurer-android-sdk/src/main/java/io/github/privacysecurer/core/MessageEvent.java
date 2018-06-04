@@ -10,11 +10,13 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github.privacysecurer.communication.Contact;
 import io.github.privacysecurer.communication.Message;
+import io.github.privacysecurer.core.exceptions.PSException;
 import io.github.privacysecurer.core.purposes.Purpose;
 
 /**
- * Message related events, used for setting parameters and providing event processing methods.
+ * Message related events, used for setting event parameters and providing processing methods.
  */
 public class MessageEvent extends Event {
     /**
@@ -29,9 +31,9 @@ public class MessageEvent extends Event {
      */
     private String eventType;
     /**
-     * The occurrence times for periodic events, e.g. for the Audio_Check_Average_Loudness_Periodically event,
-     * setRecurrence(2) means that if the average loudness is higher than the threshold twice, the programming model
-     * will stop monitoring the event.
+     * The occurrence times for periodic events, e.g. in the event to monitor unwanted messages,
+     * setRecurrence(2) means that if the unwanted caller sends messages twice, the API will
+     * stop monitoring the event.
      */
     private Integer recurrence;
     /**
@@ -252,6 +254,17 @@ public class MessageEvent extends Event {
     }
 
     @Override
+    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
+
+    }
+
+    @Override
+    public void addPrecisionConstraints(String lobatPrecision) {
+
+    }
+
+
+    @Override
     public void handle(Context context, final PSCallback psCallback) {
         UQI uqi = new UQI(context);
         Boolean booleanFlag = null;
@@ -269,17 +282,14 @@ public class MessageEvent extends Event {
                         .ifPresent(Message.CONTENT, new Callback<String>() {
                             @Override
                             protected void onInput(String input) {
-
                                 counter++;
                                 satisfyCond = false;
                                 if (recurrence != null && counter > recurrence) {
-                                    Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                     pStreamProvider.isCancelled = true;
                                 } else {
-                                    Log.d("Log", "The incoming message is unwanted.");
+                                    Log.d("Log", "Unwanted incoming messages.");
                                     setSatisfyCond();
                                 }
-
                             }
                         });
                 break;
@@ -293,7 +303,7 @@ public class MessageEvent extends Event {
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider1 = Message.asIncomingSMS();
-                uqi.getData(pStreamProvider1, Purpose.UTILITY("Listen to the messages from the blacklist."))
+                uqi.getData(pStreamProvider1, Purpose.UTILITY("Listen to incoming messages from the blacklist."))
                         .filterList(Message.CONTACT, lists)
                         .ifPresent(Message.CONTACT, new Callback<String>() {
                             @Override
@@ -305,7 +315,7 @@ public class MessageEvent extends Event {
                                     //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                     pStreamProvider1.isCancelled = true;
                                 } else {
-                                    Log.d("Log", "The incoming message is in the blacklist.");
+                                    Log.d("Log", "Incoming message in the blacklist.");
                                     psCallback.setCaller(input);
                                     setSatisfyCond();
                                 }
@@ -314,26 +324,63 @@ public class MessageEvent extends Event {
                         });
                 break;
 
+            case Event.Message_From_Contacts:
+                periodicEvent = true;
+
+                UQI uqiCall = new UQI(context);
+                List<String> oneList = new ArrayList<>();
+
+                try {
+                    List<List<String>> contactPhones = uqi.getData(Contact.getAll(), Purpose.UTILITY("Listen to incoming messages from contacts."))
+                            .asList(Contact.PHONES);
+
+                    for (int i=0; i<contactPhones.size(); i++) {
+                        for (int j=0; j<contactPhones.get(i).size(); j++) {
+                            oneList.add(contactPhones.get(i).get(j));
+                        }
+                    }
+
+                    final PStreamProvider pStreamProvider2 = Message.asIncomingSMS();
+                    uqiCall.getData(pStreamProvider2, Purpose.UTILITY("Listen to incoming messages from contacts."))
+                            .filterList(Message.CONTACT, oneList)
+                            .ifPresent(Message.CONTACT, new Callback<String>() {
+                                @Override
+                                protected void onInput(String input) {
+                                    counter++;
+                                    satisfyCond = false;
+                                    if (recurrence != null && counter > recurrence) {
+                                        pStreamProvider2.isCancelled = true;
+                                    } else {
+                                        Log.d("Log", "Incoming message from contact lists.");
+                                        psCallback.setCaller(input);
+                                        setSatisfyCond();
+                                    }
+                                }
+                            });
+
+                } catch (PSException e) {
+                    e.printStackTrace();
+                }
+                break;
+
             case Event.Message_Coming_In:
                 periodicEvent = true;
 
-                final PStreamProvider pStreamProvider2 = Message.asIncomingSMS();
-                uqi.getData(pStreamProvider2, Purpose.UTILITY("Listen to new messages."))
+                final PStreamProvider pStreamProvider3 = Message.asIncomingSMS();
+                uqi.getData(pStreamProvider3, Purpose.UTILITY("Listen to new messages."))
                         .ifPresent(Message.CONTACT, new Callback<String>() {
                             @Override
                             protected void onInput(String input) {
-
                                 counter++;
                                 satisfyCond = false;
                                 if (recurrence != null && counter > recurrence) {
                                     //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
-                                    pStreamProvider2.isCancelled = true;
+                                    pStreamProvider3.isCancelled = true;
                                 } else {
                                     Log.d("Log", "New messages arrive.");
                                     psCallback.setCaller(input);
                                     setSatisfyCond();
                                 }
-
                             }
                         });
                 break;

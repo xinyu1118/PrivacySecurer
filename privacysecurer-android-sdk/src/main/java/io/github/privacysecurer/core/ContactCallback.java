@@ -16,6 +16,11 @@ public abstract class ContactCallback extends PSCallback {
      */
     private static List<String> emails;
     /**
+     * Intermediate data to be called back, a stream of call items
+     * meeting filtering conditions.
+     */
+    private static List<Item> callRecords;
+    /**
      * Intermediate data to be called back, the caller of incoming calls.
      */
     private static String caller;
@@ -42,12 +47,12 @@ public abstract class ContactCallback extends PSCallback {
     }
 
     @Override
-    public void setDurationOfStay(long durationOfStay) {
+    public void setCurrentTime(long currentTime) {
 
     }
 
     @Override
-    public long getDurationOfStay() {
+    public long getCurrentTime() {
         return 0;
     }
 
@@ -139,6 +144,16 @@ public abstract class ContactCallback extends PSCallback {
     @Override
     public Double getDistance() {
         return null;
+    }
+
+    @Override
+    public void setCallRecords(List<Item> callRecords) {
+        this.callRecords = callRecords;
+    }
+
+    @Override
+    public List<Item> getCallRecords() {
+        return this.callRecords;
     }
 
 }

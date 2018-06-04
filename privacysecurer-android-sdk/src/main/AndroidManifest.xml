@@ -53,6 +53,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/ps_file_provider"/>
         </provider>
+
     </application>
 
 </manifest>

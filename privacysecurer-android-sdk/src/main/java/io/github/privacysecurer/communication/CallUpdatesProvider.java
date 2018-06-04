@@ -3,10 +3,12 @@ package io.github.privacysecurer.communication;
 import android.Manifest;
 import android.content.Context;
 import android.content.IntentFilter;
+import android.util.Log;
 
 import io.github.privacysecurer.core.UQI;
 import io.github.privacysecurer.core.PStreamProvider;
 
+import java.util.Arrays;
 import java.util.Date;
 
 import static io.github.privacysecurer.utils.CommunicationUtils.normalizePhoneNumber;
@@ -35,6 +37,8 @@ class CallUpdatesProvider extends PStreamProvider {
     @Override
     protected void onCancel(UQI uqi) {
         super.onCancel(uqi);
+        //Log.d("onCancel",Arrays.toString(Thread.currentThread().getStackTrace()));
+
         if (callReceiver != null) {
             this.getUQI().getContext().unregisterReceiver(callReceiver);
         }
@@ -77,5 +81,6 @@ class CallUpdatesProvider extends PStreamProvider {
                     0L, Call.TYPE_MISSED);
             CallUpdatesProvider.this.output(call);
         }
+
     }
 }

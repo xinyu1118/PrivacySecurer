@@ -19,7 +19,7 @@ import io.github.privacysecurer.image.Image;
 import io.github.privacysecurer.image.ImageOperators;
 
 /**
- * Image related events, used for setting parameters and providing event processing methods.
+ * Image related events, used for setting event parameters and providing processing methods.
  */
 public class ImageEvent extends Event {
     /**
@@ -34,9 +34,9 @@ public class ImageEvent extends Event {
      */
     private String eventType;
     /**
-     * The occurrence times for periodic events, e.g. for the Audio_Check_Average_Loudness_Periodically event,
-     * setRecurrence(2) means that if the average loudness is higher than the threshold twice, the programming model
-     * will stop monitoring the event.
+     * The occurrence times for periodic events, e.g. in the event to monitor file folder changes,
+     * setRecurrence(2) means that if the content in a file folder are updated twice, the API will
+     * stop monitoring the event.
      */
     private Integer recurrence;
     /**
@@ -255,6 +255,17 @@ public class ImageEvent extends Event {
     }
 
     @Override
+    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
+
+    }
+
+    @Override
+    public void addPrecisionConstraints(String lobatPrecision) {
+
+    }
+
+
+    @Override
     public void handle(Context context, PSCallback psCallback) {
         UQI uqi = new UQI(context);
         Boolean booleanFlag = null;
@@ -268,6 +279,10 @@ public class ImageEvent extends Event {
 
             case Event.Image_Has_Face:
                 periodicEvent = false;
+                if (path.isEmpty())
+                    Log.d("Log", "Path doesn't exist.");
+                else
+                    Log.d("Log", path+" is being analyzed...");
 
                 try {
                     booleanFlag = uqi.getData(Image.getFromStorage(), Purpose.UTILITY("Listen to detecting faces."))
@@ -291,6 +306,10 @@ public class ImageEvent extends Event {
 
             case Image_File_Updated:
                 periodicEvent = true;
+                if (path.isEmpty())
+                    Log.d("Log", "Path doesn't exist.");
+                else
+                    Log.d("Log", path+" is being monitored...");
                 filesObserver = new FilesObserver(path);
                 filesObserver.startWatching();
                 break;
@@ -375,35 +394,33 @@ public class ImageEvent extends Event {
         public FilesObserver (String path) {
             super(path, FileObserver.ALL_EVENTS);
         }
-
         @Override
         public void onEvent(int i, String path) {
+            int event = i & FileObserver.ALL_EVENTS;
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
             if (recurrence != null && counter > recurrence) {
-                //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                 filesObserver.stopWatching();
             } else {
-
-                if (i == FileObserver.DELETE) {
+                if (event == FileObserver.DELETE) {
                     Log.d("Log", "A file was deleted from the monitored directory.");
                 }
-                if (i == FileObserver.MODIFY) {
+                if (event == FileObserver.MODIFY) {
                     Log.d("Log", "Data was written to a file.");
                 }
-                if (i == FileObserver.CREATE) {
+                if (event == FileObserver.CREATE) {
                     Log.d("Log", "A new file or subdirectory was created under the monitored directory.");
                 }
                 // A file or subdirectory was moved from the monitored directory
-                if (i == FileObserver.MOVED_FROM) {
+                if (event == FileObserver.MOVED_FROM) {
                     Log.d("Log", "A file or subdirectory was moved from the monitored directory.");
                 }
-                if (i == FileObserver.ACCESS) {
+                if (event == FileObserver.ACCESS) {
                     Log.d("Log", "Data was read from a file.");
                 }
-
+                setSatisfyCond();
             }
-
         }
     }
+
 }

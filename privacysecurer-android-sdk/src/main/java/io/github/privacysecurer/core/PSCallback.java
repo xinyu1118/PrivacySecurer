@@ -16,8 +16,8 @@ public abstract class PSCallback {
     public abstract Double getMaxLoudness();
 
     // Geolocation related methods for setting and getting intermediate data.
-    public abstract void setDurationOfStay(long durationOfStay);
-    public abstract long getDurationOfStay();
+    public abstract void setCurrentTime(long currentTime);
+    public abstract long getCurrentTime();
     public abstract void setSpeed(Float speed);
     public abstract Float getSpeed();
     public abstract void setCity(String city);
@@ -34,8 +34,11 @@ public abstract class PSCallback {
     public abstract Double getDistance();
 
     // Contact and Call related methods for setting and getting intermeidate data.
+    public abstract void setCallRecords(List<Item> callRecords);
+    public abstract List<Item> getCallRecords();
     public abstract void setEmails(List<String> emails);
     public abstract List<String> getEmails();
+
     // Also used for message related callback methods.
     public abstract void setCaller(String caller);
     public abstract String getCaller();

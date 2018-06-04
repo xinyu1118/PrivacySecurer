@@ -5,18 +5,13 @@ import android.util.Log;
 
 import io.github.privacysecurer.core.exceptions.PSException;
 import io.github.privacysecurer.core.purposes.Purpose;
-import io.github.privacysecurer.location.Geolocation;
 import io.github.privacysecurer.utils.Logging;
 import io.github.privacysecurer.utils.PermissionUtils;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
-import static java.lang.Boolean.TRUE;
 
 
 /**

@@ -97,7 +97,7 @@ public abstract class Event {
      * Check call logs, and judge whether there are unwanted calls from a certain contact,
      * both caller name and phone number are supported.
      */
-    public static final String Call_Unwanted_Call_Logs = "callUnwantedCallLogs";
+    public static final String Call_Logs_Checking = "callLogsChecking";
 
     /**
      * Monitor incoming calls and check the phone number is from a blacklist.
@@ -135,6 +135,11 @@ public abstract class Event {
      * Monitor incoming messages and check the phone number is from a blacklist.
      */
     public static final String Message_In_Blacklist = "messageInBlacklist";
+
+    /**
+     * Monitor incoming messages and check the phone number is from contact lists.
+     */
+    public static final String Message_From_Contacts = "messageFromContacts";
 
     /**
      * Check message content updates, including adding, deleting, modifying.
@@ -246,6 +251,10 @@ public abstract class Event {
     public abstract boolean getSatisfyCond();
 
     public abstract void setBroadListener(BroadListener broadListener);
+
+    public abstract void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound);
+
+    public abstract void addPrecisionConstraints(String lobatPrecision);
 
     /**
      * Abstract method, implemented by subclasses to handle specific events,

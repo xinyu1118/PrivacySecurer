@@ -1,15 +1,22 @@
 package io.github.privacysecurer.core;
 
-
 import java.util.List;
 
 import io.github.privacysecurer.location.LatLon;
 
 /**
- * Geolocation related callbacks with intermediate data.
+ * Aggregative events related callbacks with intermediate data.
  */
-public abstract class GeolocationCallback extends PSCallback {
+public class AggregativeCallback extends PSCallback {
 
+    /**
+     * Intermediate data to be called back, average loudness in dB.
+     */
+    private static Double avgLoudness;
+    /**
+     * Intermediate data to be called back, maximum loudness in dB.
+     */
+    private static Double maxLoudness;
     /**
      * Current time in milliseconds.
      */
@@ -42,26 +49,35 @@ public abstract class GeolocationCallback extends PSCallback {
      * The distance to the destination.
      */
     private static Double distance;
+    /**
+     * Intermediate data to be called back, a list of emails
+     * matched with the emails in the contacts.
+     */
+    private static List<String> emails;
+    /**
+     * Intermediate data to be called back, the caller of incoming calls.
+     */
+    private static String caller;
 
 
     @Override
     public void setAvgLoudness(Double avgLoudness) {
-
+        this.avgLoudness = avgLoudness;
     }
 
     @Override
     public Double getAvgLoudness() {
-        return null;
+        return this.avgLoudness;
     }
 
     @Override
     public void setMaxLoudness(Double maxLoudness) {
-
+        this.maxLoudness = maxLoudness;
     }
 
     @Override
     public Double getMaxLoudness() {
-        return null;
+        return this.maxLoudness;
     }
 
     @Override
@@ -125,26 +141,6 @@ public abstract class GeolocationCallback extends PSCallback {
     }
 
     @Override
-    public void setEmails(List<String> emails) {
-
-    }
-
-    @Override
-    public List<String> getEmails() {
-        return null;
-    }
-
-    @Override
-    public void setCaller(String caller) {
-
-    }
-
-    @Override
-    public String getCaller() {
-        return null;
-    }
-
-    @Override
     public void setLatLon(LatLon latLon) {
         this.latLon = latLon;
     }
@@ -174,4 +170,28 @@ public abstract class GeolocationCallback extends PSCallback {
         return null;
     }
 
+    @Override
+    public void setEmails(List<String> emails) {
+        this.emails = emails;
+    }
+
+    @Override
+    public List<String> getEmails() {
+        return this.emails;
+    }
+
+    @Override
+    public void setCaller(String caller) {
+        this.caller = caller;
+    }
+
+    @Override
+    public String getCaller() {
+        return this.caller;
+    }
+
+    @Override
+    public void onEvent() {
+
+    }
 }

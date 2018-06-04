@@ -1,7 +1,13 @@
 package io.github.privacysecurer.core;
 
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.BatteryManager;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
 import android.util.Log;
 
 import java.util.List;
@@ -11,8 +17,10 @@ import io.github.privacysecurer.audio.AudioOperators;
 import io.github.privacysecurer.core.exceptions.PSException;
 import io.github.privacysecurer.core.purposes.Purpose;
 
+import static android.content.Context.BATTERY_SERVICE;
+
 /**
- * Audio related event, used for setting parameters and providing event processing methods.
+ * Audio related events, used for setting event parameters and providing processing methods.
  */
 public class AudioEvent extends Event {
     public static final String AvgLoudness = "avgLoudness";
@@ -37,9 +45,9 @@ public class AudioEvent extends Event {
      */
     private String eventType;
     /**
-     * The occurrence times for periodic events, e.g. for the Audio_Check_Average_Loudness_Periodically event,
-     * setRecurrence(2) means that if the average loudness is higher than the threshold twice, the programming model
-     * will stop monitoring the event.
+     * The occurrence times for periodic events, e.g. in the event to check average audio loudness,
+     * setRecurrence(2) means that if the average loudness is higher than the threshold twice, the
+     * API will stop monitoring the event.
      */
     private Integer recurrence;
     /**
@@ -59,6 +67,18 @@ public class AudioEvent extends Event {
      */
     private long interval;
     /**
+     * The interval of audio recording in low battery level.
+     */
+    private long lobatInterval;
+    /**
+     * The upper bound of the section in low battery level.
+     */
+    private int upperBound;
+    /**
+     * The lower bound of the section in low battery level.
+     */
+    private int lowerBound;
+    /**
      * The threshold to be compared with average or maximum loudness.
      */
     private Double threshold;
@@ -74,6 +94,12 @@ public class AudioEvent extends Event {
 
     // used to count the event occurrence times
     int counter = 0;
+
+    private static Object monitor = new Object();
+    private static boolean isCharged = false;
+    private boolean broadcastRegistered = false;
+    BroadcastReceiver receiver;
+    Context mContext;
 
 
     @Override
@@ -278,21 +304,35 @@ public class AudioEvent extends Event {
         this.broadListener = broadListener;
     }
 
+    @Override
+    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
+        this.lobatInterval = lobatInterval;
+        this.upperBound = upperBound;
+        this.lowerBound = lowerBound;
+    }
 
+    @Override
+    public void addPrecisionConstraints(String lobatPrecision) {
+
+    }
+
+
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
     public void handle(Context context, final PSCallback psCallback) {
         UQI uqi = new UQI(context);
+        mContext = context;
 
         // Judge event type
         switch (fieldName) {
             case AvgLoudness:
-                if (interval == 0)
+                if (interval == -1)
                     this.setEventType(Event.Audio_Check_Average_Loudness);
                 else
                     this.setEventType(Event.Audio_Check_Average_Loudness_Periodically);
                 break;
             case MaxLoudness:
-                if (interval == 0)
+                if (interval == -1)
                     this.setEventType(Event.Audio_Check_Maximum_Loudness);
                 else
                     this.setEventType(Event.Audio_Check_Maximum_Loudness_Periodically);
@@ -307,7 +347,7 @@ public class AudioEvent extends Event {
                 periodicEvent = false;
 
                 try {
-                    avgLoudness = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to average audio loudness."))
+                    avgLoudness = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to average audio loudness once."))
                             .setField("avgLoudness", AudioOperators.calcLoudness(Audio.AUDIO_DATA))
                             .getFirst("avgLoudness");
                 } catch (PSException e) {
@@ -373,6 +413,34 @@ public class AudioEvent extends Event {
 
             case Event.Audio_Check_Average_Loudness_Periodically:
                 periodicEvent = true;
+
+                BatteryManager bm = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
+                int batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+
+                // add power constrains
+                if (lobatInterval != 0) {
+                    // when in low battery level, enlarge the data sampling interval
+                    if (batteryLevel >= lowerBound && batteryLevel < upperBound) {
+                        interval = lobatInterval;
+                    }
+
+                    // when in extremely low battery level, sleep until charged
+                    if (batteryLevel < lowerBound) {
+                        // get current charging status
+                        IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                        Intent batteryStatus = context.registerReceiver(null, intentFilter);
+                        int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+                        boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                status == BatteryManager.BATTERY_STATUS_FULL;
+
+                        // if the device is charging, just sample data immediately, otherwise
+                        // sleep until it is charged.
+                        if (!isCharging) {
+                            new WaitThread().start();
+                            new NotifyThread().start();
+                        }
+                    }
+                }
 
                 final PStreamProvider pStreamProvider = Audio.recordPeriodic(duration, interval);
                 uqi.getData(pStreamProvider, Purpose.UTILITY("Listen to average audio loudness periodically."))
@@ -486,13 +554,17 @@ public class AudioEvent extends Event {
 
                             }
                         });
+
+                if (broadcastRegistered)
+                    mContext.unregisterReceiver(receiver);
+
                 break;
 
             case Event.Audio_Check_Maximum_Loudness:
                 periodicEvent = false;
 
                 try {
-                    maxLoudness = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to audio maximum loudness."))
+                    maxLoudness = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to audio maximum loudness once."))
                             .setField("maxLoudness", AudioOperators.calcMaxLoudness(Audio.AUDIO_DATA))
                             .getFirst("maxLoudness");
                 } catch (PSException e) {
@@ -558,6 +630,34 @@ public class AudioEvent extends Event {
 
             case Event.Audio_Check_Maximum_Loudness_Periodically:
                 periodicEvent = true;
+
+                BatteryManager bm2 = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
+                int batteryLevel2 = bm2.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+
+                // add power constrains
+                if (lobatInterval != 0) {
+                    // when in low battery level, enlarge the data sampling interval
+                    if (batteryLevel2 >= lowerBound && batteryLevel2 < upperBound) {
+                        interval = lobatInterval;
+                    }
+
+                    // when in extremely low battery level, sleep until charged.
+                    if (batteryLevel2 < lowerBound) {
+                        // get current charging status
+                        IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                        Intent batteryStatus = context.registerReceiver(null, intentFilter);
+                        int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+                        boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                status == BatteryManager.BATTERY_STATUS_FULL;
+
+                        // if the device is charging, just sample data immediately, otherwise
+                        // sleep until it is charged.
+                        if (!isCharging) {
+                            new WaitThread().start();
+                            new NotifyThread().start();
+                        }
+                    }
+                }
 
                 final PStreamProvider pStreamProvider1 = Audio.recordPeriodic(duration, interval);
                 uqi.getData(pStreamProvider1, Purpose.UTILITY("Listen to audio maximum loudness periodically."))
@@ -670,6 +770,10 @@ public class AudioEvent extends Event {
 
                             }
                         });
+
+                if (broadcastRegistered)
+                    mContext.unregisterReceiver(receiver);
+
                 break;
 
             case Event.Audio_Has_Human_Voice:
@@ -690,6 +794,9 @@ public class AudioEvent extends Event {
         private Double threshold;
         private long duration;
         private long interval;
+        private long lobatInterval;
+        private int upperBound;
+        private int lowerBound;
         private Integer recurrence;
 
         public AudioEventBuilder setFieldName(String fieldName) {
@@ -722,6 +829,13 @@ public class AudioEvent extends Event {
             return this;
         }
 
+        public AudioEventBuilder addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
+            this.lobatInterval = lobatInterval;
+            this.upperBound = upperBound;
+            this.lowerBound = lowerBound;
+            return this;
+        }
+
         public Event build() {
             AudioEvent audioEvent = new AudioEvent();
 
@@ -745,11 +859,54 @@ public class AudioEvent extends Event {
                 audioEvent.setInterval(interval);
             }
 
+            if (lobatInterval != 0 && upperBound != 0 && lowerBound != 0) {
+                audioEvent.addPowerConstraints(lobatInterval, upperBound, lowerBound);
+            }
+
             if (recurrence != null) {
                 audioEvent.setRecurrence(recurrence);
             }
 
             return audioEvent;
+        }
+    }
+
+    // If the device is not charged, wait the thread until power is connected.
+    public class WaitThread extends Thread {
+        public void run() {
+            while(!isCharged) {
+                synchronized(monitor) {
+                    try {
+                        monitor.wait();
+                    } catch(InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
+    // Notify the thread to keep on executing subsequent codes once charged.
+    public class NotifyThread extends Thread {
+        public void run() {
+            IntentFilter ifilter = new IntentFilter();
+            ifilter.addAction(Intent.ACTION_POWER_CONNECTED);
+            //ifilter.addAction(Intent.ACTION_POWER_DISCONNECTED);
+            receiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent.getAction().equals(Intent.ACTION_POWER_CONNECTED)) {
+                        //Toast.makeText(context, "connected", Toast.LENGTH_SHORT).show();
+                        isCharged = true;
+                        synchronized (monitor) {
+                            monitor.notifyAll();
+                        }
+                    }
+
+                }
+            };
+            mContext.registerReceiver(receiver, ifilter);
+            broadcastRegistered = true;
         }
     }
 

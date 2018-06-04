@@ -37,12 +37,12 @@ public abstract class MessageCallback extends PSCallback {
     }
 
     @Override
-    public void setDurationOfStay(long durationOfStay) {
+    public void setCurrentTime(long currentTime) {
 
     }
 
     @Override
-    public long getDurationOfStay() {
+    public long getCurrentTime() {
         return 0;
     }
 
@@ -133,6 +133,16 @@ public abstract class MessageCallback extends PSCallback {
 
     @Override
     public Double getDistance() {
+        return null;
+    }
+
+    @Override
+    public void setCallRecords(List<Item> callRecords) {
+
+    }
+
+    @Override
+    public List<Item> getCallRecords() {
         return null;
     }
 

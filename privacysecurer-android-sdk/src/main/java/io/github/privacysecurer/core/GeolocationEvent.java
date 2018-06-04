@@ -1,14 +1,22 @@
 package io.github.privacysecurer.core;
 
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.location.Address;
 import android.location.Geocoder;
+import android.os.BatteryManager;
+import android.os.Build;
+import android.support.annotation.RequiresApi;
 import android.util.Log;
 import android.widget.Toast;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 import io.github.privacysecurer.core.purposes.Purpose;
@@ -16,8 +24,10 @@ import io.github.privacysecurer.location.Geolocation;
 import io.github.privacysecurer.location.GeolocationOperators;
 import io.github.privacysecurer.location.LatLon;
 
+import static android.content.Context.BATTERY_SERVICE;
+
 /**
- * location related events, used for setting parameters and providing event processing methods.
+ * location related events, used for setting event parameters and providing processing methods.
  */
 public class GeolocationEvent extends Event {
     public static final String Location = "location";
@@ -46,9 +56,9 @@ public class GeolocationEvent extends Event {
      */
     private String eventType;
     /**
-     * The occurrence times for periodic events, e.g. for the Audio_Check_Average_Loudness_Periodically event,
-     * setRecurrence(2) means that if the average loudness is higher than the threshold twice, the programming model
-     * will stop monitoring the event.
+     * The occurrence times for periodic events, e.g. in the geofence event,
+     * setRecurrence(2) means that if the user enters or leaves a certain area twice,
+     * the API will stop monitoring the event.
      */
     private Integer recurrence;
     /**
@@ -64,6 +74,18 @@ public class GeolocationEvent extends Event {
      */
     private long interval;
     /**
+     * The interval of location updating in low battery level.
+     */
+    private long lobatInterval;
+    /**
+     * The upper bound of the section in low battery level.
+     */
+    private int upperBound;
+    /**
+     * The lower bound of the section in low battery level.
+     */
+    private int lowerBound;
+    /**
      * The speed threshold in m/s.
      */
     private Double threshold;
@@ -71,6 +93,10 @@ public class GeolocationEvent extends Event {
      * The location granularity level.
      */
     private String locationPrecision;
+    /**
+     * The location precision granularity in low battery level.
+     */
+    private String lobatPrecision;
     /**
      * The location latitude.
      */
@@ -115,6 +141,11 @@ public class GeolocationEvent extends Event {
     // used to count the event occurrence times
     static int counter = 0;
 
+    private static Object monitor = new Object();
+    private static boolean isCharged = false;
+    private boolean broadcastRegistered = false;
+    BroadcastReceiver receiver;
+    Context mContext;
 
     @Override
     public void setEventType(String eventType) {
@@ -319,8 +350,52 @@ public class GeolocationEvent extends Event {
     }
 
     @Override
+    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
+        this.lobatInterval = lobatInterval;
+        this.upperBound = upperBound;
+        this.lowerBound = lowerBound;
+    }
+
+    @Override
+    public void addPrecisionConstraints(String lobatPrecision) {
+        this.lobatPrecision = lobatPrecision;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
+    @Override
     public void handle(final Context context, final PSCallback psCallback) {
         UQI uqi = new UQI(context);
+        mContext = context;
+
+        // add power constrains
+        if (lobatInterval != 0) {
+            BatteryManager bm = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
+            int batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+
+            // when in low battery level, enlarge the data sampling interval and turn down location precision
+            if (batteryLevel >= lowerBound && batteryLevel < upperBound) {
+                interval = lobatInterval;
+                if (lobatPrecision != null)
+                    locationPrecision = lobatPrecision;
+            }
+
+            // when in extremely low battery level, sleep until charged.
+            if (batteryLevel < lowerBound) {
+                // get current charging status
+                IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                Intent batteryStatus = context.registerReceiver(null, intentFilter);
+                int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+                boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                        status == BatteryManager.BATTERY_STATUS_FULL;
+
+                // if the device is charging, just sample data immediately, otherwise
+                // sleep until it is charged.
+                if (!isCharging) {
+                    new WaitThread().start();
+                    new NotifyThread().start();
+                }
+            }
+        }
 
         switch (fieldName) {
             case Location:
@@ -408,6 +483,7 @@ public class GeolocationEvent extends Event {
                                                 pStreamProvider.isCancelled = true;
                                             } else {
                                                 Log.d("Log", "Entered or leaved the geofence.");
+                                                Toast.makeText(context, "In or Out of the region!", Toast.LENGTH_SHORT).show();
                                                 psCallback.setNumber(counter);
                                                 setSatisfyCond();
                                             }
@@ -436,13 +512,11 @@ public class GeolocationEvent extends Event {
                         return;
                     Address location = addresses.get(0);
                     latLon = new LatLon(location.getLatitude(), location.getLongitude());
-                    //Log.d("Log", String.valueOf(location.getLatitude()));
-                    //Log.d("Log", String.valueOf(location.getLongitude()));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
 
-                // default radius settings
+                // default radius settings, as radius is easy to be ignored by developers
                 if (radius == null) this.setRadius(100.0);
 
                 final PStreamProvider pStreamProvider1 = Geolocation.asUpdates(interval, locationPrecision);
@@ -454,6 +528,20 @@ public class GeolocationEvent extends Event {
                                 if (operator.equals(In)) {
 
                                     if (distance <= radius) {
+                                        counter++;
+                                        if (recurrence != null && counter > recurrence)
+                                            pStreamProvider1.isCancelled = true;
+                                        else {
+                                            Log.d("Log", "In " + placeName + ".");
+                                            psCallback.setCurrentTime(System.currentTimeMillis());
+                                            setSatisfyCond();
+                                        }
+                                    } else {
+                                        Log.d("Log", "Event hasn't happened yet.");
+                                        satisfyCond = false;
+                                    }
+
+                                    /*if (distance <= radius) {
                                         currentArea = "in";
                                         counter++;
                                         if (recurrence != null && counter > recurrence) {
@@ -464,12 +552,12 @@ public class GeolocationEvent extends Event {
                                             setSatisfyCond();
                                         }
                                         // when a user enters the area first time, start counting.
-                                        if (currentArea.equals("in") && lastArea.equals("out"))
+                                        if (lastArea.equals("out"))
                                             startTime = System.currentTimeMillis();
                                     } else {
                                         currentArea = "out";
                                         Log.d("Log", "Event hasn't happened yet.");
-                                        if (currentArea.equals("out") && lastArea.equals("in")) {
+                                        if (lastArea.equals("in")) {
                                             // when a user leaves the area first time, stop counting.
                                             stopTime = System.currentTimeMillis();
                                             if (startTime != 0 && stopTime >= startTime) {
@@ -479,17 +567,16 @@ public class GeolocationEvent extends Event {
                                             }
                                         }
                                     }
-                                    lastArea = currentArea;
+                                    lastArea = currentArea;*/
 
                                 } else {
-
                                     if (distance > radius) {
                                         counter++;
                                         if (recurrence != null && counter > recurrence) {
-                                            //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                             pStreamProvider1.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Out of " + placeName + ".");
+                                            psCallback.setCurrentTime(System.currentTimeMillis());
                                             setSatisfyCond();
                                         }
                                     } else {
@@ -517,7 +604,6 @@ public class GeolocationEvent extends Event {
                                     if (speed >= fThreshold) {
                                         counter++;
                                         if (recurrence != null && counter > recurrence) {
-                                            //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                             pStreamProvider2.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Over speed.");
@@ -535,7 +621,6 @@ public class GeolocationEvent extends Event {
                                     if (speed < fThreshold) {
                                         counter++;
                                         if (recurrence != null && counter > recurrence) {
-                                            //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                             pStreamProvider2.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Under speed.");
@@ -569,7 +654,6 @@ public class GeolocationEvent extends Event {
                                     if (distance <= 15) {
                                         counter++;
                                         if (recurrence != null && counter > recurrence) {
-                                            //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                             pStreamProvider3.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Distance less than the radius.");
@@ -585,7 +669,6 @@ public class GeolocationEvent extends Event {
                                     if (distance > 15) {
                                         counter++;
                                         if (recurrence != null && counter > recurrence) {
-                                            //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                             pStreamProvider3.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Distance over the radius.");
@@ -617,7 +700,6 @@ public class GeolocationEvent extends Event {
                                 } else {
                                     counter++;
                                     if (recurrence != null && counter > recurrence) {
-                                        //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                         pStreamProvider4.isCancelled = true;
                                     } else {
                                         Log.d("Log", "City updated.");
@@ -647,7 +729,6 @@ public class GeolocationEvent extends Event {
                                 } else {
                                     counter++;
                                     if (recurrence != null && counter > recurrence) {
-                                        //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                         pStreamProvider5.isCancelled = true;
                                     } else {
                                         Log.d("Log", "Postcode updated.");
@@ -677,7 +758,6 @@ public class GeolocationEvent extends Event {
                                 } else {
                                     counter++;
                                     if (recurrence != null && counter > recurrence) {
-                                        //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                         pStreamProvider6.isCancelled = true;
                                     } else {
                                         Log.d("Log", "Direction updated");
@@ -703,7 +783,6 @@ public class GeolocationEvent extends Event {
                                 counter++;
                                 satisfyCond = false;
                                 if (recurrence != null && counter > recurrence) {
-                                    //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                     pStreamProvider7.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Location updated");
@@ -720,6 +799,9 @@ public class GeolocationEvent extends Event {
 
         }
 
+        if (broadcastRegistered)
+            mContext.unregisterReceiver(receiver);
+
     }
 
     /**
@@ -729,8 +811,12 @@ public class GeolocationEvent extends Event {
         private String fieldName;
         private String operator;
         private long interval;
+        private long lobatInterval;
+        private int upperBound;
+        private int lowerBound;
         private Double threshold;
         private String locationPrecision;
+        private String lobatPrecision;
         private Double latitude;
         private Double longitude;
         private Double radius;
@@ -787,6 +873,18 @@ public class GeolocationEvent extends Event {
             return this;
         }
 
+        public GeolocationEventBuilder addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
+            this.lobatInterval = lobatInterval;
+            this.upperBound = upperBound;
+            this.lowerBound = lowerBound;
+            return this;
+        }
+
+        public GeolocationEventBuilder addPrecisionConstraints(String lobatPrecision) {
+            this.lobatPrecision = lobatPrecision;
+            return this;
+        }
+
         public Event build() {
             GeolocationEvent geolocationEvent = new GeolocationEvent();
 
@@ -802,12 +900,20 @@ public class GeolocationEvent extends Event {
                 geolocationEvent.setInterval(interval);
             }
 
+            if (lobatInterval != 0 && upperBound != 0 && lowerBound != 0) {
+                geolocationEvent.addPowerConstraints(lobatInterval, upperBound, lowerBound);
+            }
+
             if (threshold != null) {
                 geolocationEvent.setThreshold(threshold);
             }
 
             if (locationPrecision != null) {
                 geolocationEvent.setLocationPrecision(locationPrecision);
+            }
+
+            if (lobatPrecision != null) {
+                geolocationEvent.addPrecisionConstraints(lobatPrecision);
             }
 
             if (latitude != null) {
@@ -831,6 +937,45 @@ public class GeolocationEvent extends Event {
             }
 
             return geolocationEvent;
+        }
+    }
+
+    // If the device is not charged, wait the thread until power is connected.
+    public class WaitThread extends Thread {
+        public void run() {
+            while(!isCharged) {
+                synchronized(monitor) {
+                    try {
+                        monitor.wait();
+                    } catch(InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+
+    // Notify the thread to keep on executing subsequent codes once charged.
+    public class NotifyThread extends Thread {
+        public void run() {
+            IntentFilter ifilter = new IntentFilter();
+            ifilter.addAction(Intent.ACTION_POWER_CONNECTED);
+            //ifilter.addAction(Intent.ACTION_POWER_DISCONNECTED);
+            receiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent.getAction().equals(Intent.ACTION_POWER_CONNECTED)) {
+                        //Toast.makeText(context, "connected", Toast.LENGTH_SHORT).show();
+                        isCharged = true;
+                        synchronized (monitor) {
+                            monitor.notifyAll();
+                        }
+                    }
+
+                }
+            };
+            mContext.registerReceiver(receiver, ifilter);
+            broadcastRegistered = true;
         }
     }
 }
