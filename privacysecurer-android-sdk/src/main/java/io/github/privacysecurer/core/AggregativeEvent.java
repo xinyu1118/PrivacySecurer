@@ -10,11 +10,11 @@ import java.util.List;
 
 import static java.lang.Boolean.TRUE;
 
+/**
+ * Aggregative events, used for setting event parameters and providing processing methods.
+ */
 public class AggregativeEvent extends Event {
-    /**
-     * Event type, defined in Event class.
-     */
-    private String eventType;
+
     /**
      * multiple events to be carried on 'and' operation
      */
@@ -31,28 +31,25 @@ public class AggregativeEvent extends Event {
     Boolean andResult;
     Boolean orResult;
     Boolean notResult;
-    Boolean result = TRUE;
+    Boolean result;
 
     long interval = 0;
     int runCount;
 
+    public AggregativeEvent() {
+        andResult = null;
+        orResult = null;
+        notResult = null;
+        result = TRUE;
+    }
+
     @Override
     public void setEventType(String eventType) {
-        this.eventType = eventType;
+
     }
 
     @Override
     public String getEventType() {
-        return this.eventType;
-    }
-
-    @Override
-    public void setRecurrence(Integer recurrence) {
-
-    }
-
-    @Override
-    public Integer getRecurrence() {
         return null;
     }
 
@@ -94,6 +91,16 @@ public class AggregativeEvent extends Event {
     @Override
     public long getInterval() {
         return 0;
+    }
+
+    @Override
+    public void setNotificationResponsiveness(Integer recurrence) {
+
+    }
+
+    @Override
+    public Integer getNotificationResponsiveness() {
+        return null;
     }
 
     @Override
@@ -218,6 +225,7 @@ public class AggregativeEvent extends Event {
 
     @Override
     public void setSatisfyCond() {
+
     }
 
     @Override
@@ -231,18 +239,14 @@ public class AggregativeEvent extends Event {
     }
 
     @Override
-    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
-
-    }
-
-    @Override
-    public void addPrecisionConstraints(String lobatPrecision) {
+    public void addOptimizationConstraints(List<List> batteryIntervalMatrix) {
 
     }
 
 
     @Override
     public void handle(Context context, PSCallback psCallback) {
+
          /*
          * Deal with logic 'and' operation for multiple events
          * A thread is run to monitor the specified event, and once it is triggered,
@@ -253,8 +257,8 @@ public class AggregativeEvent extends Event {
         if (andEvents != null) {
             for (Event e : andEvents) {
                 // To get the longest interval for all events
-                if (e.getInterval() > interval) {
-                    interval = e.getInterval();
+                if ((e.getDuration()+e.getInterval()) > interval) {
+                    interval = e.getDuration()+e.getInterval();
                 }
 
                 final Event event = e;
@@ -396,14 +400,14 @@ public class AggregativeEvent extends Event {
 
                     // Don't use 'if (andEvents != null)' as condition judgement statements
                     // Although the list size equals to 0, but it's not null
-                    if (andEvents.size() != 0) {
-                        andResult = andEvents.get(0).getSatisfyCond();
-                        for (int i = 1; i < andEvents.size(); i++) {
-                            //Log.d("Log", "and operations:");
-                            andResult = andResult && andEvents.get(i).getSatisfyCond();
-                            //Log.d("Log", String.valueOf(andResult));
-                        }
-                        result = result && andResult;
+                    if (andEvents != null) {
+                            andResult = andEvents.get(0).getSatisfyCond();
+                            for (int i = 1; i < andEvents.size(); i++) {
+                                //Log.d("Log", "and operations:");
+                                andResult = andResult && andEvents.get(i).getSatisfyCond();
+                                //Log.d("Log", String.valueOf(andResult));
+                            }
+                            result = result && andResult;
                     }
 
                     if (orEvents != null) {
@@ -443,106 +447,30 @@ public class AggregativeEvent extends Event {
     }
 
     /**
-     * Inner class used to build aggregative events and corresponding parameters.
+     * Builder pattern used to construct aggregative related events.
      */
-    public static class AggregativeEventBuilder extends EventBuilder {
-        private String eventType;
+    public static class AggregativeEventBuilder {
         private List<Event> andEvents = new ArrayList<>();
         private List<Event> orEvents = new ArrayList<>();
         private List<Event> notEvents = new ArrayList<>();
 
-        @Override
-        public EventBuilder setEventType(String eventType) {
-            this.eventType = eventType;
-            return this;
-        }
-
-        @Override
-        public EventBuilder setRecurring(Integer recurringNumber) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setDuration(long duration) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setInterval(long interval) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setThreshold(Double threshold) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setLocationPrecision(String locationPrecision) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setLatitude(Double latitude) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setLongitude(Double longitude) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setRadius(Double radius) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setPlaceName(String placeName) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setLists(List<String> lists) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setCaller(String caller) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder setPath(String path) {
-            return null;
-        }
-
-        @Override
-        public EventBuilder and(Event andEvent) {
+        public AggregativeEventBuilder and(Event andEvent) {
             andEvents.add(andEvent);
             return this;
         }
 
-        @Override
-        public EventBuilder or(Event orEvent) {
+        public AggregativeEventBuilder or(Event orEvent) {
             orEvents.add(orEvent);
             return this;
         }
 
-        @Override
-        public EventBuilder not(Event notEvent) {
+        public AggregativeEventBuilder not(Event notEvent) {
             notEvents.add(notEvent);
-            return null;
+            return this;
         }
 
-
-        @Override
         public Event build() {
             AggregativeEvent aggregativeEvent = new AggregativeEvent();
-
-            if (eventType != null) {
-                aggregativeEvent.setEventType(eventType);
-            }
 
             if (andEvents.size() != 0) {
                 aggregativeEvent.and(andEvents);
@@ -557,7 +485,7 @@ public class AggregativeEvent extends Event {
             }
 
             return aggregativeEvent;
-
         }
     }
+
 }

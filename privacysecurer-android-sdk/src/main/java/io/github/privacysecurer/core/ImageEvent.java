@@ -22,6 +22,16 @@ import io.github.privacysecurer.image.ImageOperators;
  * Image related events, used for setting event parameters and providing processing methods.
  */
 public class ImageEvent extends Event {
+
+    // Field name options
+    public static final String MediaLibrary = "mediaLibrary";
+    public static final String FileOrFolder = "fileOrFolder";
+    public static final String Images = "images";
+
+    // Operator options
+    public static final String Updated = "updated";
+    public static final String HasFace = "hasFace";
+
     /**
      * The boolean flag used to indicate whether the event is triggered or not,
      * the initial value is false.
@@ -30,19 +40,27 @@ public class ImageEvent extends Event {
     private BroadListener broadListener;
 
     /**
-     * Event type, define in Event class.
+     * Event type defined in Event class.
      */
     private String eventType;
     /**
-     * The occurrence times for periodic events, e.g. in the event to monitor file folder changes,
-     * setRecurrence(2) means that if the content in a file folder are updated twice, the API will
-     * stop monitoring the event.
+     * The field name of personal data.
      */
-    private Integer recurrence;
+    private String fieldName;
+    /**
+     * The operator on the field value.
+     */
+    private String operator;
     /**
      * File or file folder path.
      */
     private String path;
+    /**
+     * The event recurrence times, could be 0 representing that events happen uninterruptedly,
+     * also positive value representing that events happen limited times, especially value 1
+     * meaning that events happen only once.
+     */
+    private Integer recurrence;
 
     // used to count the event occurrence times
     int counter = 0;
@@ -63,33 +81,23 @@ public class ImageEvent extends Event {
     }
 
     @Override
-    public void setRecurrence(Integer recurrence) {
-        this.recurrence = recurrence;
-    }
-
-    @Override
-    public Integer getRecurrence() {
-        return this.recurrence;
-    }
-
-    @Override
     public void setFieldName(String fieldName) {
-
+        this.fieldName = fieldName;
     }
 
     @Override
     public String getFieldName() {
-        return null;
+        return this.fieldName;
     }
 
     @Override
     public void setOperator(String operator) {
-
+        this.operator = operator;
     }
 
     @Override
     public String getOperator() {
-        return null;
+        return this.operator;
     }
 
     @Override
@@ -110,6 +118,16 @@ public class ImageEvent extends Event {
     @Override
     public long getInterval() {
         return 0;
+    }
+
+    @Override
+    public void setNotificationResponsiveness(Integer recurrence) {
+        this.recurrence = recurrence;
+    }
+
+    @Override
+    public Integer getNotificationResponsiveness() {
+        return this.recurrence;
     }
 
     @Override
@@ -255,21 +273,30 @@ public class ImageEvent extends Event {
     }
 
     @Override
-    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
+    public void addOptimizationConstraints(List<List> batteryIntervalMatrix) {
 
     }
-
-    @Override
-    public void addPrecisionConstraints(String lobatPrecision) {
-
-    }
-
 
     @Override
     public void handle(Context context, PSCallback psCallback) {
         UQI uqi = new UQI(context);
         Boolean booleanFlag = null;
         this.context = context;
+
+        // Judge event type
+        switch (fieldName) {
+            case MediaLibrary:
+                this.setEventType(Event.Image_Content_Updated);
+                break;
+            case FileOrFolder:
+                this.setEventType(Event.Image_File_Updated);
+                break;
+            case Images:
+                this.setEventType(Event.Image_Has_Face);
+                break;
+            default:
+                Log.d("Log", "No matchable event type, please check it again.");
+        }
 
         switch (eventType) {
             case Event.Image_Content_Updated:
@@ -321,15 +348,21 @@ public class ImageEvent extends Event {
     }
 
     /**
-     * Inner class used to build image related events and corresponding parameters.
+     * Builder pattern used to construct image related events.
      */
     public static class ImageEventBuilder {
-        private String eventType;
+        private String fieldName;
+        private String operator;
         private String path;
         private Integer recurrence;
 
-        public ImageEventBuilder setEventType(String eventType) {
-            this.eventType = eventType;
+        public ImageEventBuilder setFieldName(String fieldName) {
+            this.fieldName = fieldName;
+            return this;
+        }
+
+        public ImageEventBuilder setOperator(String operator) {
+            this.operator = operator;
             return this;
         }
 
@@ -338,7 +371,7 @@ public class ImageEvent extends Event {
             return this;
         }
 
-        public ImageEventBuilder setRecurrence(Integer recurrence) {
+        public ImageEventBuilder setNotificationResponsiveness(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
@@ -346,8 +379,12 @@ public class ImageEvent extends Event {
         public Event build() {
             ImageEvent imageEvent = new ImageEvent();
 
-            if (eventType != null) {
-                imageEvent.setEventType(eventType);
+            if (fieldName != null) {
+                imageEvent.setFieldName(fieldName);
+            }
+
+            if (operator != null) {
+                imageEvent.setOperator(operator);
             }
 
             if (path != null) {
@@ -355,7 +392,7 @@ public class ImageEvent extends Event {
             }
 
             if (recurrence != null) {
-                imageEvent.setRecurrence(recurrence);
+                imageEvent.setNotificationResponsiveness(recurrence);
             }
 
             return imageEvent;
@@ -363,8 +400,8 @@ public class ImageEvent extends Event {
     }
 
     /**
-     * Inner class extends from ContentObserver, and overrides onChange() method,
-     * used to monitoring image content changes.
+     * Inner class extends from ContentObserver, and overrides onChange() method
+     * used to monitor image content changes.
      */
     private final class ImagesObserver extends ContentObserver {
         public ImagesObserver(Handler handler){
@@ -375,7 +412,7 @@ public class ImageEvent extends Event {
         public void onChange(boolean selfChange) {
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
-            if (recurrence != null && counter > recurrence) {
+            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                 context.getContentResolver().unregisterContentObserver(imagesObserver);
             } else {
@@ -386,8 +423,8 @@ public class ImageEvent extends Event {
     }
 
     /**
-     * Inner class extends from FileObserver, and overrides onEvent() method,
-     * used to monitoring file folder content changes, specially checking an image inserted
+     * Inner class extends from FileObserver, and overrides onEvent() method
+     * used to monitor file folder content changes, specially checking an image inserted
      * to a folder (move from or created).
      */
     private final class FilesObserver extends FileObserver {
@@ -399,7 +436,7 @@ public class ImageEvent extends Event {
             int event = i & FileObserver.ALL_EVENTS;
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
-            if (recurrence != null && counter > recurrence) {
+            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                 filesObserver.stopWatching();
             } else {
                 if (event == FileObserver.DELETE) {

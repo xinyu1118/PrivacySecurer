@@ -19,6 +19,17 @@ import io.github.privacysecurer.core.purposes.Purpose;
  * Message related events, used for setting event parameters and providing processing methods.
  */
 public class MessageEvent extends Event {
+
+    // Field name options
+    public static final String Messages = "messages";
+    public static final String Sender = "sender";
+    public static final String MessageLists = "messageLists";
+
+    // Operator options
+    public static final String In = "in";
+    public static final String From = "from";
+    public static final String Updated = "updated";
+
     /**
      * The boolean flag used to indicate whether the event is triggered or not,
      * the initial value is false.
@@ -27,15 +38,17 @@ public class MessageEvent extends Event {
     private BroadListener broadListener;
 
     /**
-     * Event type, defined in Event class.
+     * Event type defined in Event class.
      */
     private String eventType;
     /**
-     * The occurrence times for periodic events, e.g. in the event to monitor unwanted messages,
-     * setRecurrence(2) means that if the unwanted caller sends messages twice, the API will
-     * stop monitoring the event.
+     * The field name of personal data.
      */
-    private Integer recurrence;
+    private String fieldName;
+    /**
+     * The operator on the field value.
+     */
+    private String operator;
     /**
      * The sender name or phone number.
      */
@@ -44,6 +57,12 @@ public class MessageEvent extends Event {
      * The blacklist of phone numbers.
      */
     private List<String> lists;
+    /**
+     * The event recurrence times, could be 0 representing that events happen uninterruptedly,
+     * also positive value representing that events happen limited times, especially value 1
+     * meaning that events happen only once.
+     */
+    private Integer recurrence;
 
     // used to count the event occurrence times
     int counter = 0;
@@ -62,33 +81,23 @@ public class MessageEvent extends Event {
     }
 
     @Override
-    public void setRecurrence(Integer recurrence) {
-        this.recurrence = recurrence;
-    }
-
-    @Override
-    public Integer getRecurrence() {
-        return this.recurrence;
-    }
-
-    @Override
     public void setFieldName(String fieldName) {
-
+        this.fieldName = fieldName;
     }
 
     @Override
     public String getFieldName() {
-        return null;
+        return this.fieldName;
     }
 
     @Override
     public void setOperator(String operator) {
-
+        this.operator = operator;
     }
 
     @Override
     public String getOperator() {
-        return null;
+        return this.operator;
     }
 
     @Override
@@ -109,6 +118,16 @@ public class MessageEvent extends Event {
     @Override
     public long getInterval() {
         return 0;
+    }
+
+    @Override
+    public void setNotificationResponsiveness(Integer recurrence) {
+        this.recurrence = recurrence;
+    }
+
+    @Override
+    public Integer getNotificationResponsiveness() {
+        return this.recurrence;
     }
 
     @Override
@@ -254,12 +273,7 @@ public class MessageEvent extends Event {
     }
 
     @Override
-    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
-
-    }
-
-    @Override
-    public void addPrecisionConstraints(String lobatPrecision) {
+    public void addOptimizationConstraints(List<List> batteryIntervalMatrix) {
 
     }
 
@@ -270,6 +284,24 @@ public class MessageEvent extends Event {
         Boolean booleanFlag = null;
         List<Boolean> list = new ArrayList<>();
         this.context = context;
+
+        // Judge event type
+        switch (fieldName) {
+            case Messages:
+                this.setEventType(Event.Message_Coming_In);
+                break;
+            case Sender:
+                if (operator == From)
+                    this.setEventType(Event.Message_Check_Unwanted);
+                if (operator == In)
+                    this.setEventType(Event.Message_In_List);
+                break;
+            case MessageLists:
+                this.setEventType(Event.Message_Lists_Updated);
+                break;
+            default:
+                Log.d("Log", "No matchable event type, please check it again.");
+        }
 
         switch (eventType) {
             case Event.Message_Check_Unwanted:
@@ -284,7 +316,7 @@ public class MessageEvent extends Event {
                             protected void onInput(String input) {
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != null && counter > recurrence) {
+                                if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                                     pStreamProvider.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Unwanted incoming messages.");
@@ -299,7 +331,7 @@ public class MessageEvent extends Event {
                 context.getContentResolver().registerContentObserver(Uri.parse("content://sms"),true, messagesObserver);
                 break;
 
-            case Event.Message_In_Blacklist:
+            case Event.Message_In_List:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider1 = Message.asIncomingSMS();
@@ -324,7 +356,8 @@ public class MessageEvent extends Event {
                         });
                 break;
 
-            case Event.Message_From_Contacts:
+            // A concrete example for Event.Message_In_List
+            /*case Event.Message_From_Contacts:
                 periodicEvent = true;
 
                 UQI uqiCall = new UQI(context);
@@ -361,7 +394,7 @@ public class MessageEvent extends Event {
                 } catch (PSException e) {
                     e.printStackTrace();
                 }
-                break;
+                break;*/
 
             case Event.Message_Coming_In:
                 periodicEvent = true;
@@ -392,16 +425,22 @@ public class MessageEvent extends Event {
     }
 
     /**
-     * Inner class used to build message related events and corresponding parameters.
+     * Builder pattern used to construct message related events.
      */
     public static class MessageEventBuilder {
-        private String eventType;
+        private String fieldName;
+        private String operator;
         private String caller;
-        private Integer recurrence;
         private List<String> lists;
+        private Integer recurrence;
 
-        public MessageEventBuilder setEventType(String eventType) {
-            this.eventType = eventType;
+        public MessageEventBuilder setFieldName(String fieldName) {
+            this.fieldName = fieldName;
+            return this;
+        }
+
+        public MessageEventBuilder setOperator(String operator) {
+            this.operator = operator;
             return this;
         }
 
@@ -410,33 +449,37 @@ public class MessageEvent extends Event {
             return this;
         }
 
-        public MessageEventBuilder setRecurrence(Integer recurrence) {
-            this.recurrence = recurrence;
+        public MessageEventBuilder setLists(List<String> lists) {
+            this.lists = lists;
             return this;
         }
 
-        public MessageEventBuilder setLists(List<String> lists) {
-            this.lists = lists;
+        public MessageEventBuilder setNotificationResponsiveness(Integer recurrence) {
+            this.recurrence = recurrence;
             return this;
         }
 
         public Event build() {
             MessageEvent messageEvent = new MessageEvent();
 
-            if (eventType != null) {
-                messageEvent.setEventType(eventType);
+            if (fieldName != null) {
+                messageEvent.setFieldName(fieldName);
+            }
+
+            if (operator != null) {
+                messageEvent.setOperator(operator);
             }
 
             if (caller != null) {
                 messageEvent.setCaller(caller);
             }
 
-            if (recurrence != null) {
-                messageEvent.setRecurrence(recurrence);
-            }
-
             if (lists != null) {
                 messageEvent.setLists(lists);
+            }
+
+            if (recurrence != null) {
+                messageEvent.setNotificationResponsiveness(recurrence);
             }
 
             return messageEvent;
@@ -444,8 +487,8 @@ public class MessageEvent extends Event {
     }
 
     /**
-     * Inner class extends from ContentObserver, and overrides onChange() method,
-     * used to monitoring message changes.
+     * Inner class extends from ContentObserver, and overrides onChange() method
+     * used to monitor message changes.
      */
     private final class MessagesObserver extends ContentObserver {
         public MessagesObserver(Handler handler){
@@ -456,7 +499,7 @@ public class MessageEvent extends Event {
         public void onChange(boolean selfChange) {
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
-            if (recurrence != null && counter > recurrence) {
+            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                 context.getContentResolver().unregisterContentObserver(messagesObserver);
             } else {
@@ -465,4 +508,5 @@ public class MessageEvent extends Event {
             }
         }
     }
+
 }

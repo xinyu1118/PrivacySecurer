@@ -10,6 +10,13 @@ import java.util.List;
  * Concrete event inherits from it and implements specific monitoring methods.
  */
 public abstract class Event {
+
+    public static final Integer ContinuousSampling = 0;
+
+    public static final Long Off = new Integer(0).longValue();
+
+    public static final String DefaultPrecision = "defaultPrecision";
+
     /**
      * Check high loudness recorded from microphone once,
      * the loudness is the average value of recorded audio data in dB.
@@ -100,14 +107,15 @@ public abstract class Event {
     public static final String Call_Logs_Checking = "callLogsChecking";
 
     /**
-     * Monitor incoming calls and check the phone number is from a blacklist.
+     * Monitor incoming calls and check the phone number is in a list.
      */
-    public static final String Call_In_Blacklist = "callInBlacklist";
+    public static final String Call_In_List = "callInList";
+    //public static final String Call_In_Blacklist = "callInBlacklist";
 
     /**
      * Monitor incoming calls and check the phone number is from contact lists.
      */
-    public static final String Call_From_Contacts = "callFromContacts";
+    //public static final String Call_From_Contacts = "callFromContacts";
 
     /**
      * Monitor incoming calls in the background.
@@ -132,14 +140,15 @@ public abstract class Event {
     public static final String Message_Check_Unwanted = "messageCheckUnwanted";
 
     /**
-     * Monitor incoming messages and check the phone number is from a blacklist.
+     * Monitor incoming messages and check the phone number is in a list.
      */
-    public static final String Message_In_Blacklist = "messageInBlacklist";
+    public static final String Message_In_List = "messageInList";
+    //public static final String Message_In_Blacklist = "messageInBlacklist";
 
     /**
      * Monitor incoming messages and check the phone number is from contact lists.
      */
-    public static final String Message_From_Contacts = "messageFromContacts";
+    //public static final String Message_From_Contacts = "messageFromContacts";
 
     /**
      * Check message content updates, including adding, deleting, modifying.
@@ -178,10 +187,6 @@ public abstract class Event {
 
     public abstract String getEventType();
 
-    public abstract void setRecurrence(Integer recurrence);
-
-    public abstract Integer getRecurrence();
-
     public abstract void setFieldName(String fieldName);
 
     public abstract String getFieldName();
@@ -197,6 +202,10 @@ public abstract class Event {
     public abstract void setInterval(long interval);
 
     public abstract long getInterval();
+
+    public abstract void setNotificationResponsiveness(Integer recurrence);
+
+    public abstract Integer getNotificationResponsiveness();
 
     public abstract void setThreshold(Double threshold);
 
@@ -252,9 +261,7 @@ public abstract class Event {
 
     public abstract void setBroadListener(BroadListener broadListener);
 
-    public abstract void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound);
-
-    public abstract void addPrecisionConstraints(String lobatPrecision);
+    public abstract void addOptimizationConstraints(List<List> batteryIntervalMatrix);
 
     /**
      * Abstract method, implemented by subclasses to handle specific events,

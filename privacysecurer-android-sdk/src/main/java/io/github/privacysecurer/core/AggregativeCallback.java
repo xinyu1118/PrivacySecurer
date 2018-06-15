@@ -7,7 +7,7 @@ import io.github.privacysecurer.location.LatLon;
 /**
  * Aggregative events related callbacks with intermediate data.
  */
-public class AggregativeCallback extends PSCallback {
+public abstract class AggregativeCallback extends PSCallback {
 
     /**
      * Intermediate data to be called back, average loudness in dB.
@@ -190,8 +190,4 @@ public class AggregativeCallback extends PSCallback {
         return this.caller;
     }
 
-    @Override
-    public void onEvent() {
-
-    }
 }

@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.github.privacysecurer.communication.Call;
-import io.github.privacysecurer.communication.CallOperators;
 import io.github.privacysecurer.communication.Contact;
 import io.github.privacysecurer.core.exceptions.PSException;
 import io.github.privacysecurer.core.purposes.Purpose;
@@ -20,6 +19,19 @@ import io.github.privacysecurer.core.purposes.Purpose;
  * Contact related events, used for setting event parameters and providing processing methods.
  */
 public class ContactEvent extends Event {
+
+    // Field name options
+    public static final String Calls = "calls";
+    public static final String Caller = "caller";
+    public static final String Emails = "emails";
+    public static final String Contacts = "contacts";
+    public static final String Logs = "logs";
+
+    // Operator options
+    public static final String In = "in";
+    public static final String From = "from";
+    public static final String Updated = "updated";
+
     /**
      * The boolean flag used to indicate whether the event is triggered or not,
      * the initial value is false.
@@ -28,22 +40,31 @@ public class ContactEvent extends Event {
     private BroadListener broadListener;
 
     /**
-     * Event type, defined in Event class.
+     * Event type defined in Event class.
      */
     private String eventType;
     /**
-     * The occurrence times for periodic events, e.g. in the event to monitor incoming unwanted calls,
-     * setRecurrence(2) means that if an unwanted caller calls twice, the API will stop monitoring the event.
+     * The field name of personal data.
      */
-    private Integer recurrence;
+    private String fieldName;
+    /**
+     * The operator on the field value.
+     */
+    private String operator;
+    /**
+     * A list of emails provided by developers.
+     */
+    private List<String> lists;
     /**
      * The caller name or phone number.
      */
     private String caller;
     /**
-     * A list of emails provided by developers.
+     * The event recurrence times, could be 0 representing that events happen uninterruptedly,
+     * also positive value representing that events happen limited times, especially value 1
+     * meaning that events happen only once.
      */
-    private List<String> lists;
+    private Integer recurrence;
 
     // used to count the event occurrence times
     int counter = 0;
@@ -65,33 +86,23 @@ public class ContactEvent extends Event {
     }
 
     @Override
-    public void setRecurrence(Integer recurrence) {
-        this.recurrence = recurrence;
-    }
-
-    @Override
-    public Integer getRecurrence() {
-        return this.recurrence;
-    }
-
-    @Override
     public void setFieldName(String fieldName) {
-
+        this.fieldName = fieldName;
     }
 
     @Override
     public String getFieldName() {
-        return null;
+        return this.fieldName;
     }
 
     @Override
     public void setOperator(String operator) {
-
+        this.operator = operator;
     }
 
     @Override
     public String getOperator() {
-        return null;
+        return this.operator;
     }
 
     @Override
@@ -112,6 +123,16 @@ public class ContactEvent extends Event {
     @Override
     public long getInterval() {
         return 0;
+    }
+
+    @Override
+    public void setNotificationResponsiveness(Integer recurrence) {
+        this.recurrence = recurrence;
+    }
+
+    @Override
+    public Integer getNotificationResponsiveness() {
+        return this.recurrence;
     }
 
     @Override
@@ -257,12 +278,7 @@ public class ContactEvent extends Event {
     }
 
     @Override
-    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
-
-    }
-
-    @Override
-    public void addPrecisionConstraints(String lobatPrecision) {
+    public void addOptimizationConstraints(List<List> batteryIntervalMatrix) {
 
     }
 
@@ -272,6 +288,29 @@ public class ContactEvent extends Event {
         Boolean booleanFlag = null;
         List<Boolean> list = new ArrayList<>();
         this.context = context;
+
+        // Judge event type
+        switch (fieldName) {
+            case Calls:
+                this.setEventType(Event.Call_Coming_In);
+                break;
+            case Caller:
+                if (operator == From)
+                    this.setEventType(Event.Call_Check_Unwanted);
+                if (operator == In)
+                    this.setEventType(Event.Call_In_List);
+                break;
+            case Emails:
+                this.setEventType(Event.Contact_Emails_In_Lists);
+                break;
+            case Contacts:
+                this.setEventType(Event.Contact_Lists_Updated);
+                break;
+            case Logs:
+                this.setEventType(Event.Call_Logs_Checking);
+            default:
+                Log.d("Log", "No matchable event type, please check it again.");
+        }
 
         switch (eventType) {
             case Event.Contact_Lists_Updated:
@@ -328,7 +367,7 @@ public class ContactEvent extends Event {
 
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != null && counter > recurrence) {
+                                if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                                     pStreamProvider.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Unwanted incoming calls.");
@@ -368,7 +407,7 @@ public class ContactEvent extends Event {
                     Log.d("Log", "Event hasn't happened yet.");
                 break;
 
-            case Event.Call_In_Blacklist:
+            case Event.Call_In_List:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider1 = Call.asUpdates();
@@ -380,7 +419,7 @@ public class ContactEvent extends Event {
 
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != null && counter > recurrence) {
+                                if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                                     pStreamProvider1.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Incoming call in the blacklist.");
@@ -392,7 +431,8 @@ public class ContactEvent extends Event {
                         });
                 break;
 
-            case Event.Call_From_Contacts:
+            // A concrete example for Event.Call_In_List
+            /*case Event.Call_From_Contacts:
                 periodicEvent = true;
 
                 UQI uqiCall = new UQI(context);
@@ -417,7 +457,7 @@ public class ContactEvent extends Event {
 
                                     counter++;
                                     satisfyCond = false;
-                                    if (recurrence != null && counter > recurrence) {
+                                    if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                                         pStreamProvider2.isCancelled = true;
                                     } else {
                                         Log.d("Log", "Incoming call from contact lists.");
@@ -430,7 +470,7 @@ public class ContactEvent extends Event {
                 } catch (PSException e) {
                     e.printStackTrace();
                 }
-                break;
+                break;*/
 
             case Event.Call_Coming_In:
                 periodicEvent = true;
@@ -443,7 +483,7 @@ public class ContactEvent extends Event {
 
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != null && counter > recurrence) {
+                                if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                                     pStreamProvider3.isCancelled = true;
                                 } else {
                                     Log.d("Log", "New calls arrive.");
@@ -461,16 +501,22 @@ public class ContactEvent extends Event {
     }
 
     /**
-     * Inner class used to build contact related events and corresponding parameters.
+     * Builder pattern used to construct contact related events.
      */
     public static class ContactEventBuilder {
-        private String eventType;
+        private String fieldName;
+        private String operator;
         private List<String> lists;
         private String caller;
         private Integer recurrence;
 
-        public ContactEventBuilder setEventType(String eventType) {
-            this.eventType = eventType;
+        public ContactEventBuilder setFieldName(String fieldName) {
+            this.fieldName = fieldName;
+            return this;
+        }
+
+        public ContactEventBuilder setOperator(String operator) {
+            this.operator = operator;
             return this;
         }
 
@@ -484,15 +530,19 @@ public class ContactEvent extends Event {
             return this;
         }
 
-        public ContactEventBuilder setRecurrence(Integer recurrence) {
+        public ContactEventBuilder setNotificationResponsiveness(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
 
         public Event build() {
             ContactEvent contactEvent = new ContactEvent();
-            if (eventType != null) {
-                contactEvent.setEventType(eventType);
+            if (fieldName != null) {
+                contactEvent.setFieldName(fieldName);
+            }
+
+            if (operator != null) {
+                contactEvent.setOperator(operator);
             }
 
             if (lists != null) {
@@ -504,7 +554,7 @@ public class ContactEvent extends Event {
             }
 
             if (recurrence != null) {
-                contactEvent.setRecurrence(recurrence);
+                contactEvent.setNotificationResponsiveness(recurrence);
             }
 
             return contactEvent;
@@ -512,8 +562,8 @@ public class ContactEvent extends Event {
     }
 
     /**
-     * Inner class extends from ContentObserver, and overrides onChange() method,
-     * used to monitoring contact lists changes.
+     * Inner class extends from ContentObserver, and overrides onChange() method
+     * used to monitor contact lists changes.
      */
     private final class ContactsObserver extends ContentObserver {
         public ContactsObserver(Handler handler){
@@ -524,7 +574,7 @@ public class ContactEvent extends Event {
         public void onChange(boolean selfChange) {
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
-            if (recurrence != null && counter > recurrence) {
+            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                 context.getContentResolver().unregisterContentObserver(contactsObserver);
             } else {
@@ -532,6 +582,6 @@ public class ContactEvent extends Event {
                 setSatisfyCond();
             }
         }
-
     }
+
 }

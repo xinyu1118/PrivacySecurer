@@ -10,6 +10,7 @@ import android.os.Build;
 import android.support.annotation.RequiresApi;
 import android.util.Log;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import io.github.privacysecurer.audio.Audio;
@@ -23,9 +24,12 @@ import static android.content.Context.BATTERY_SERVICE;
  * Audio related events, used for setting event parameters and providing processing methods.
  */
 public class AudioEvent extends Event {
+
+    // Field name options
     public static final String AvgLoudness = "avgLoudness";
     public static final String MaxLoudness = "maxLoudness";
 
+    // Operator options
     public static final String GTE = "gte";
     public static final String LTE = "lte";
     public static final String GT = "gt";
@@ -41,23 +45,21 @@ public class AudioEvent extends Event {
     private BroadListener broadListener;
 
     /**
-     * Event type, defined in Event class.
+     * Event type defined in Event class.
      */
     private String eventType;
-    /**
-     * The occurrence times for periodic events, e.g. in the event to check average audio loudness,
-     * setRecurrence(2) means that if the average loudness is higher than the threshold twice, the
-     * API will stop monitoring the event.
-     */
-    private Integer recurrence;
     /**
      * The field name of personal data.
      */
     private String fieldName;
     /**
-     * The operators on the field value.
+     * The operator on the field value.
      */
     private String operator;
+    /**
+     * The threshold to be compared with average or maximum loudness.
+     */
+    private Double threshold;
     /**
      * The duration of audio recording in milliseconds.
      */
@@ -67,21 +69,16 @@ public class AudioEvent extends Event {
      */
     private long interval;
     /**
-     * The interval of audio recording in low battery level.
+     * The event recurrence times, could be 0 representing that events happen uninterruptedly,
+     * also positive value representing that events happen limited times, especially value 1
+     * meaning that events happen only once.
      */
-    private long lobatInterval;
+    private Integer recurrence;
     /**
-     * The upper bound of the section in low battery level.
+     * A matrix setting the sampling interval values in various sections, the elements in each row
+     * are upper bound, lower bound and interval in turn.
      */
-    private int upperBound;
-    /**
-     * The lower bound of the section in low battery level.
-     */
-    private int lowerBound;
-    /**
-     * The threshold to be compared with average or maximum loudness.
-     */
-    private Double threshold;
+    private List<List> optimizationMatrix = new ArrayList<>();
 
     /**
      * Intermediate data to be returned, average loudness in dB.
@@ -110,16 +107,6 @@ public class AudioEvent extends Event {
     @Override
     public String getEventType() {
         return this.eventType;
-    }
-
-    @Override
-    public void setRecurrence(Integer recurrence) {
-        this.recurrence = recurrence;
-    }
-
-    @Override
-    public Integer getRecurrence() {
-        return this.recurrence;
     }
 
     @Override
@@ -160,6 +147,16 @@ public class AudioEvent extends Event {
     @Override
     public long getInterval() {
         return this.interval;
+    }
+
+    @Override
+    public void setNotificationResponsiveness(Integer recurrence) {
+        this.recurrence = recurrence;
+    }
+
+    @Override
+    public Integer getNotificationResponsiveness() {
+        return this.recurrence;
     }
 
     @Override
@@ -305,15 +302,8 @@ public class AudioEvent extends Event {
     }
 
     @Override
-    public void addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
-        this.lobatInterval = lobatInterval;
-        this.upperBound = upperBound;
-        this.lowerBound = lowerBound;
-    }
-
-    @Override
-    public void addPrecisionConstraints(String lobatPrecision) {
-
+    public void addOptimizationConstraints(List<List> optimizationMatrix) {
+        this.optimizationMatrix = optimizationMatrix;
     }
 
 
@@ -326,13 +316,13 @@ public class AudioEvent extends Event {
         // Judge event type
         switch (fieldName) {
             case AvgLoudness:
-                if (interval == -1)
+                if (recurrence == 1)
                     this.setEventType(Event.Audio_Check_Average_Loudness);
                 else
                     this.setEventType(Event.Audio_Check_Average_Loudness_Periodically);
                 break;
             case MaxLoudness:
-                if (interval == -1)
+                if (recurrence == 1)
                     this.setEventType(Event.Audio_Check_Maximum_Loudness);
                 else
                     this.setEventType(Event.Audio_Check_Maximum_Loudness_Periodically);
@@ -414,11 +404,43 @@ public class AudioEvent extends Event {
             case Event.Audio_Check_Average_Loudness_Periodically:
                 periodicEvent = true;
 
+                // Get the current battery level
                 BatteryManager bm = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
                 int batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
 
+                // Add interval settings based on the battery level
+                if (optimizationMatrix != null) {
+                    for (int i=0; i<optimizationMatrix.size(); i++) {
+                       if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel &&
+                               (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel) {
+                           if (optimizationMatrix.get(i).get(2) != Event.Off) {
+                               interval = (Long)optimizationMatrix.get(i).get(2);
+                           }
+                           else {
+                               // get current charging status
+                               IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                               Intent batteryStatus = context.registerReceiver(null, intentFilter);
+                               int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+                               boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                       status == BatteryManager.BATTERY_STATUS_FULL;
+
+                               // if the device is charging, just sample data immediately, otherwise
+                               // sleep until it is charged.
+                               if (!isCharging) {
+                                   Log.d("Log", "Event will be paused until getting charged.");
+                                   new WaitThread().start();
+                                   new NotifyThread().start();
+                               }
+                           }
+                           // If found a satisfied section, just break the loop. In this way,
+                           // the boundary value could also be processed appropriately.
+                           break;
+                       }
+                    }
+                }
+
                 // add power constrains
-                if (lobatInterval != 0) {
+                /*if (lobatInterval != 0) {
                     // when in low battery level, enlarge the data sampling interval
                     if (batteryLevel >= lowerBound && batteryLevel < upperBound) {
                         interval = lobatInterval;
@@ -440,7 +462,7 @@ public class AudioEvent extends Event {
                             new NotifyThread().start();
                         }
                     }
-                }
+                }*/
 
                 final PStreamProvider pStreamProvider = Audio.recordPeriodic(duration, interval);
                 uqi.getData(pStreamProvider, Purpose.UTILITY("Listen to average audio loudness periodically."))
@@ -453,7 +475,7 @@ public class AudioEvent extends Event {
                                         if (avgLoudness >= threshold) {
                                             counter ++;
                                             // Stop the monitoring thread when the event has happened recurringNumber times.
-                                            if (recurrence != null && counter > recurrence) {
+                                            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                                                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                                 pStreamProvider.isCancelled = true;
                                             } else {
@@ -631,30 +653,37 @@ public class AudioEvent extends Event {
             case Event.Audio_Check_Maximum_Loudness_Periodically:
                 periodicEvent = true;
 
+                // Get the current battery level
                 BatteryManager bm2 = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
                 int batteryLevel2 = bm2.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
 
-                // add power constrains
-                if (lobatInterval != 0) {
-                    // when in low battery level, enlarge the data sampling interval
-                    if (batteryLevel2 >= lowerBound && batteryLevel2 < upperBound) {
-                        interval = lobatInterval;
-                    }
+                // Add interval settings based on the battery level
+                if (optimizationMatrix != null) {
+                    for (int i=0; i<optimizationMatrix.size(); i++) {
+                        if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel2 &&
+                                (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel2) {
+                            if (optimizationMatrix.get(i).get(2) != Event.Off) {
+                                interval = (Long)optimizationMatrix.get(i).get(2);
+                            }
+                            else {
+                                // get current charging status
+                                IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                                Intent batteryStatus = context.registerReceiver(null, intentFilter);
+                                int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+                                boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                        status == BatteryManager.BATTERY_STATUS_FULL;
 
-                    // when in extremely low battery level, sleep until charged.
-                    if (batteryLevel2 < lowerBound) {
-                        // get current charging status
-                        IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-                        Intent batteryStatus = context.registerReceiver(null, intentFilter);
-                        int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
-                        boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                                status == BatteryManager.BATTERY_STATUS_FULL;
-
-                        // if the device is charging, just sample data immediately, otherwise
-                        // sleep until it is charged.
-                        if (!isCharging) {
-                            new WaitThread().start();
-                            new NotifyThread().start();
+                                // if the device is charging, just sample data immediately, otherwise
+                                // sleep until it is charged.
+                                if (!isCharging) {
+                                    Log.d("Log", "Event will be paused until getting charged.");
+                                    new WaitThread().start();
+                                    new NotifyThread().start();
+                                }
+                            }
+                            // If found a satisfied section, just break the loop. In this way,
+                            // the boundary value could also be processed appropriately.
+                            break;
                         }
                     }
                 }
@@ -670,7 +699,7 @@ public class AudioEvent extends Event {
                                         if (maxLoudness >= threshold) {
                                             counter ++;
                                             // Stop the monitoring thread when the event has happened recurringNumber times.
-                                            if (recurrence != null && counter > recurrence) {
+                                            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
                                                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                                 pStreamProvider1.isCancelled = true;
                                             } else {
@@ -786,7 +815,7 @@ public class AudioEvent extends Event {
     }
 
     /**
-     * Inner class used to build audio related events and corresponding parameters.
+     * Builder pattern used to construct audio related events.
      */
     public static class AudioEventBuilder {
         private String fieldName;
@@ -794,10 +823,8 @@ public class AudioEvent extends Event {
         private Double threshold;
         private long duration;
         private long interval;
-        private long lobatInterval;
-        private int upperBound;
-        private int lowerBound;
         private Integer recurrence;
+        List<List> optimizationMatrix = new ArrayList<>();
 
         public AudioEventBuilder setFieldName(String fieldName) {
             this.fieldName = fieldName;
@@ -824,15 +851,17 @@ public class AudioEvent extends Event {
             return this;
         }
 
-        public AudioEventBuilder setRecurrence(Integer recurrence) {
+        public AudioEventBuilder setNotificationResponsiveness(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
 
-        public AudioEventBuilder addPowerConstraints(long lobatInterval, int upperBound, int lowerBound) {
-            this.lobatInterval = lobatInterval;
-            this.upperBound = upperBound;
-            this.lowerBound = lowerBound;
+        public AudioEventBuilder addOptimizationConstraints(int upperBound, int lowerBound, long intervalInSections) {
+            List rowVector = new ArrayList<>();
+            rowVector.add(upperBound);
+            rowVector.add(lowerBound);
+            rowVector.add(intervalInSections);
+            optimizationMatrix.add(rowVector);
             return this;
         }
 
@@ -859,12 +888,12 @@ public class AudioEvent extends Event {
                 audioEvent.setInterval(interval);
             }
 
-            if (lobatInterval != 0 && upperBound != 0 && lowerBound != 0) {
-                audioEvent.addPowerConstraints(lobatInterval, upperBound, lowerBound);
+            if (recurrence != null) {
+                audioEvent.setNotificationResponsiveness(recurrence);
             }
 
-            if (recurrence != null) {
-                audioEvent.setRecurrence(recurrence);
+            if (optimizationMatrix != null) {
+                audioEvent.addOptimizationConstraints(optimizationMatrix);
             }
 
             return audioEvent;
@@ -886,7 +915,7 @@ public class AudioEvent extends Event {
         }
     }
 
-    // Notify the thread to keep on executing subsequent codes once charged.
+    // Notify the thread to keep on executing subsequent codes if charged.
     public class NotifyThread extends Thread {
         public void run() {
             IntentFilter ifilter = new IntentFilter();
@@ -902,7 +931,6 @@ public class AudioEvent extends Event {
                             monitor.notifyAll();
                         }
                     }
-
                 }
             };
             mContext.registerReceiver(receiver, ifilter);

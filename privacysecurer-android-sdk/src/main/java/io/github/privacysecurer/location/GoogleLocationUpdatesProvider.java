@@ -30,6 +30,8 @@ class GoogleLocationUpdatesProvider extends PStreamProvider implements
     private final long interval;
     private final String level;
 
+    private Location lastLocation = null;
+
     protected GoogleLocationUpdatesProvider(long interval, String level) {
         this.interval = interval;
         this.level = Assertions.notNull("level", level);
@@ -62,6 +64,13 @@ class GoogleLocationUpdatesProvider extends PStreamProvider implements
     @Override
     public void onLocationChanged(Location location) {
         if (location == null) return;
+        // Used to calculate speed, otherwise 0 will be always returned.
+        if (lastLocation != null) {
+            double elapsedTime = (location.getTime() - lastLocation.getTime()) / 1_000;
+            Float fSpeed = new Double(lastLocation.distanceTo(location) / elapsedTime).floatValue();
+            location.setSpeed(fSpeed);
+        }
+        lastLocation = location;
         this.output(new Geolocation(location));
     }
 
