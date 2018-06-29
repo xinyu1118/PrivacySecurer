@@ -23,7 +23,7 @@ import static android.content.Context.BATTERY_SERVICE;
 /**
  * Audio related events, used for setting event parameters and providing processing methods.
  */
-public class AudioEvent extends Event {
+public class AudioEvent extends EventType {
 
     // Field name options
     public static final String AvgLoudness = "avgLoudness";
@@ -35,7 +35,7 @@ public class AudioEvent extends Event {
     public static final String GT = "gt";
     public static final String LT = "lt";
     public static final String EQ = "eq";
-    public static final String NE = "ne";
+    public static final String NEQ = "neq";
 
     /**
      * The boolean flag used to indicate whether the event is triggered or not,
@@ -150,12 +150,12 @@ public class AudioEvent extends Event {
     }
 
     @Override
-    public void setNotificationResponsiveness(Integer recurrence) {
+    public void setMaxNumberOfRecurrences(Integer recurrence) {
         this.recurrence = recurrence;
     }
 
     @Override
-    public Integer getNotificationResponsiveness() {
+    public Integer getMaxNumberOfRecurrences() {
         return this.recurrence;
     }
 
@@ -250,32 +250,32 @@ public class AudioEvent extends Event {
     }
 
     @Override
-    public void and(List<Event> andEvents) {
+    public void and(List<EventType> andEvents) {
 
     }
 
     @Override
-    public List<Event> getAndEvents() {
+    public List<EventType> getAndEvents() {
         return null;
     }
 
     @Override
-    public void or(List<Event> orEvents) {
+    public void or(List<EventType> orEvents) {
 
     }
 
     @Override
-    public List<Event> getOrEvents() {
+    public List<EventType> getOrEvents() {
         return null;
     }
 
     @Override
-    public void not(List<Event> notEvents) {
+    public void not(List<EventType> notEvents) {
 
     }
 
     @Override
-    public List<Event> getNotEvents() {
+    public List<EventType> getNotEvents() {
         return null;
     }
 
@@ -309,31 +309,33 @@ public class AudioEvent extends Event {
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
-    public void handle(Context context, final PSCallback psCallback) {
+    public void handle(Context context, final EventCallback eventCallback) {
         UQI uqi = new UQI(context);
         mContext = context;
+        final AudioCallbackData audioCallbackData = new AudioCallbackData();
 
         // Judge event type
         switch (fieldName) {
             case AvgLoudness:
                 if (recurrence == 1)
-                    this.setEventType(Event.Audio_Check_Average_Loudness);
+                    this.setEventType(EventType.Audio_Check_Average_Loudness);
                 else
-                    this.setEventType(Event.Audio_Check_Average_Loudness_Periodically);
+                    this.setEventType(EventType.Audio_Check_Average_Loudness_Periodically);
                 break;
             case MaxLoudness:
                 if (recurrence == 1)
-                    this.setEventType(Event.Audio_Check_Maximum_Loudness);
+                    this.setEventType(EventType.Audio_Check_Maximum_Loudness);
                 else
-                    this.setEventType(Event.Audio_Check_Maximum_Loudness_Periodically);
+                    this.setEventType(EventType.Audio_Check_Maximum_Loudness_Periodically);
                 break;
             default:
                 Log.d("Log", "No matchable event type, please check it again.");
         }
+        audioCallbackData.setEventType(eventType);
 
         // Handle events according to event type
         switch (eventType) {
-            case Event.Audio_Check_Average_Loudness:
+            case EventType.Audio_Check_Average_Loudness:
                 periodicEvent = false;
 
                 try {
@@ -386,7 +388,7 @@ public class AudioEvent extends Event {
                             Log.d("Log", "Event hasn't happened yet.");
                         break;
 
-                    case NE:
+                    case NEQ:
                         if (!avgLoudness.equals(threshold)) {
                             Log.d("Log", "Average loudness isn't equal to the threshold.");
                             setSatisfyCond();
@@ -398,10 +400,11 @@ public class AudioEvent extends Event {
                         Log.d("Log", "No matchable operators, please check it.");
 
                 }
-                psCallback.setAvgLoudness(avgLoudness);
+                audioCallbackData.setAvgLoudness(avgLoudness);
+                eventCallback.setAudioCallbackData(audioCallbackData);
                 break;
 
-            case Event.Audio_Check_Average_Loudness_Periodically:
+            case EventType.Audio_Check_Average_Loudness_Periodically:
                 periodicEvent = true;
 
                 // Get the current battery level
@@ -413,7 +416,7 @@ public class AudioEvent extends Event {
                     for (int i=0; i<optimizationMatrix.size(); i++) {
                        if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel &&
                                (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel) {
-                           if (optimizationMatrix.get(i).get(2) != Event.Off) {
+                           if (optimizationMatrix.get(i).get(2) != EventType.Off) {
                                interval = (Long)optimizationMatrix.get(i).get(2);
                            }
                            else {
@@ -439,31 +442,6 @@ public class AudioEvent extends Event {
                     }
                 }
 
-                // add power constrains
-                /*if (lobatInterval != 0) {
-                    // when in low battery level, enlarge the data sampling interval
-                    if (batteryLevel >= lowerBound && batteryLevel < upperBound) {
-                        interval = lobatInterval;
-                    }
-
-                    // when in extremely low battery level, sleep until charged
-                    if (batteryLevel < lowerBound) {
-                        // get current charging status
-                        IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-                        Intent batteryStatus = context.registerReceiver(null, intentFilter);
-                        int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
-                        boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                                status == BatteryManager.BATTERY_STATUS_FULL;
-
-                        // if the device is charging, just sample data immediately, otherwise
-                        // sleep until it is charged.
-                        if (!isCharging) {
-                            new WaitThread().start();
-                            new NotifyThread().start();
-                        }
-                    }
-                }*/
-
                 final PStreamProvider pStreamProvider = Audio.recordPeriodic(duration, interval);
                 uqi.getData(pStreamProvider, Purpose.UTILITY("Listen to average audio loudness periodically."))
                         .setField("avgLoudness", AudioOperators.calcLoudness(Audio.AUDIO_DATA))
@@ -475,12 +453,13 @@ public class AudioEvent extends Event {
                                         if (avgLoudness >= threshold) {
                                             counter ++;
                                             // Stop the monitoring thread when the event has happened recurringNumber times.
-                                            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                                 pStreamProvider.isCancelled = true;
                                             } else {
                                                 Log.d("Log", "Average loudness is greater than or equal to the threshold.");
-                                                psCallback.setAvgLoudness(avgLoudness);
+                                                audioCallbackData.setAvgLoudness(avgLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -496,7 +475,8 @@ public class AudioEvent extends Event {
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Average loudness is lower than or equal to the threshold.");
-                                                psCallback.setAvgLoudness(avgLoudness);
+                                                audioCallbackData.setAvgLoudness(avgLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -512,7 +492,8 @@ public class AudioEvent extends Event {
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Average loudness is greater than the threshold.");
-                                                psCallback.setAvgLoudness(avgLoudness);
+                                                audioCallbackData.setAvgLoudness(avgLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -528,7 +509,8 @@ public class AudioEvent extends Event {
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Average loudness is lower than the threshold.");
-                                                psCallback.setAvgLoudness(avgLoudness);
+                                                audioCallbackData.setAvgLoudness(avgLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -544,7 +526,8 @@ public class AudioEvent extends Event {
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Average loudness is equal to the threshold.");
-                                                psCallback.setAvgLoudness(avgLoudness);
+                                                audioCallbackData.setAvgLoudness(avgLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -553,14 +536,15 @@ public class AudioEvent extends Event {
                                         }
                                         break;
 
-                                    case NE:
+                                    case NEQ:
                                         if (!avgLoudness.equals(threshold)) {
                                             counter ++;
                                             if (recurrence != null && counter > recurrence)
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Average loudness isn't equal to the threshold.");
-                                                psCallback.setAvgLoudness(avgLoudness);
+                                                audioCallbackData.setAvgLoudness(avgLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -582,7 +566,7 @@ public class AudioEvent extends Event {
 
                 break;
 
-            case Event.Audio_Check_Maximum_Loudness:
+            case EventType.Audio_Check_Maximum_Loudness:
                 periodicEvent = false;
 
                 try {
@@ -634,7 +618,7 @@ public class AudioEvent extends Event {
                             Log.d("Log", "Event hasn't happened yet.");
                         break;
 
-                    case NE:
+                    case NEQ:
                         if (!maxLoudness.equals(threshold)) {
                             Log.d("Log", "Maximum loudness isn't equal to the threshold.");
                             setSatisfyCond();
@@ -646,11 +630,11 @@ public class AudioEvent extends Event {
                         Log.d("Log", "No matchable operators, please check it.");
 
                 }
-
-                psCallback.setMaxLoudness(maxLoudness);
+                audioCallbackData.setMaxLoudness(maxLoudness);
+                eventCallback.setAudioCallbackData(audioCallbackData);
                 break;
 
-            case Event.Audio_Check_Maximum_Loudness_Periodically:
+            case EventType.Audio_Check_Maximum_Loudness_Periodically:
                 periodicEvent = true;
 
                 // Get the current battery level
@@ -662,7 +646,7 @@ public class AudioEvent extends Event {
                     for (int i=0; i<optimizationMatrix.size(); i++) {
                         if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel2 &&
                                 (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel2) {
-                            if (optimizationMatrix.get(i).get(2) != Event.Off) {
+                            if (optimizationMatrix.get(i).get(2) != EventType.Off) {
                                 interval = (Long)optimizationMatrix.get(i).get(2);
                             }
                             else {
@@ -699,12 +683,13 @@ public class AudioEvent extends Event {
                                         if (maxLoudness >= threshold) {
                                             counter ++;
                                             // Stop the monitoring thread when the event has happened recurringNumber times.
-                                            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                                                 pStreamProvider1.isCancelled = true;
                                             } else {
                                                 Log.d("Log", "Maximum loudness is greater than or equal to the threshold.");
-                                                psCallback.setMaxLoudness(maxLoudness);
+                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -720,7 +705,8 @@ public class AudioEvent extends Event {
                                                 pStreamProvider1.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Maximum loudness is lower than or equal to the threshold.");
-                                                psCallback.setMaxLoudness(maxLoudness);
+                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -736,7 +722,8 @@ public class AudioEvent extends Event {
                                                 pStreamProvider1.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Maximum loudness is greater than the threshold.");
-                                                psCallback.setMaxLoudness(maxLoudness);
+                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -752,7 +739,8 @@ public class AudioEvent extends Event {
                                                 pStreamProvider1.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Maximum loudness is lower than the threshold.");
-                                                psCallback.setMaxLoudness(maxLoudness);
+                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -768,7 +756,8 @@ public class AudioEvent extends Event {
                                                 pStreamProvider1.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Maximum loudness is equal to the threshold.");
-                                                psCallback.setMaxLoudness(maxLoudness);
+                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -777,14 +766,15 @@ public class AudioEvent extends Event {
                                         }
                                         break;
 
-                                    case NE:
+                                    case NEQ:
                                         if (!maxLoudness.equals(threshold)) {
                                             counter ++;
                                             if (recurrence != null && counter > recurrence)
                                                 pStreamProvider1.isCancelled = true;
                                             else {
                                                 Log.d("Log", "Maximum loudness isn't equal to the threshold.");
-                                                psCallback.setMaxLoudness(maxLoudness);
+                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -805,7 +795,7 @@ public class AudioEvent extends Event {
 
                 break;
 
-            case Event.Audio_Has_Human_Voice:
+            case EventType.Audio_Has_Human_Voice:
                 //TODO
                 break;
 
@@ -818,6 +808,7 @@ public class AudioEvent extends Event {
      * Builder pattern used to construct audio related events.
      */
     public static class AudioEventBuilder {
+        private String eventDescription;
         private String fieldName;
         private String operator;
         private Double threshold;
@@ -825,6 +816,11 @@ public class AudioEvent extends Event {
         private long interval;
         private Integer recurrence;
         List<List> optimizationMatrix = new ArrayList<>();
+
+        public AudioEventBuilder setEventDescription(String eventDescription) {
+            this.eventDescription = eventDescription;
+            return this;
+        }
 
         public AudioEventBuilder setFieldName(String fieldName) {
             this.fieldName = fieldName;
@@ -851,7 +847,7 @@ public class AudioEvent extends Event {
             return this;
         }
 
-        public AudioEventBuilder setNotificationResponsiveness(Integer recurrence) {
+        public AudioEventBuilder setMaxNumberOfRecurrences(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
@@ -865,7 +861,7 @@ public class AudioEvent extends Event {
             return this;
         }
 
-        public Event build() {
+        public EventType build() {
             AudioEvent audioEvent = new AudioEvent();
 
             if (fieldName != null) {
@@ -889,7 +885,7 @@ public class AudioEvent extends Event {
             }
 
             if (recurrence != null) {
-                audioEvent.setNotificationResponsiveness(recurrence);
+                audioEvent.setMaxNumberOfRecurrences(recurrence);
             }
 
             if (optimizationMatrix != null) {

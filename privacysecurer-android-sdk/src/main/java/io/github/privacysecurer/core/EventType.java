@@ -9,9 +9,9 @@ import java.util.List;
  * Abstract class for all events of personal data, including audio, location, contact, message, file etc.
  * Concrete event inherits from it and implements specific monitoring methods.
  */
-public abstract class Event {
+public abstract class EventType {
 
-    public static final Integer ContinuousSampling = 0;
+    public static final Integer AlwaysRepeat = 0;
 
     public static final Long Off = new Integer(0).longValue();
 
@@ -203,9 +203,9 @@ public abstract class Event {
 
     public abstract long getInterval();
 
-    public abstract void setNotificationResponsiveness(Integer recurrence);
+    public abstract void setMaxNumberOfRecurrences(Integer recurrence);
 
-    public abstract Integer getNotificationResponsiveness();
+    public abstract Integer getMaxNumberOfRecurrences();
 
     public abstract void setThreshold(Double threshold);
 
@@ -243,17 +243,17 @@ public abstract class Event {
 
     public abstract String getPath();
 
-    public abstract void and(List<Event> andEvents);
+    public abstract void and(List<EventType> andEvents);
 
-    public abstract List<Event> getAndEvents();
+    public abstract List<EventType> getAndEvents();
 
-    public abstract void or(List<Event> orEvents);
+    public abstract void or(List<EventType> orEvents);
 
-    public abstract List<Event> getOrEvents();
+    public abstract List<EventType> getOrEvents();
 
-    public abstract void not(List<Event> notEvents);
+    public abstract void not(List<EventType> notEvents);
 
-    public abstract List<Event> getNotEvents();
+    public abstract List<EventType> getNotEvents();
 
     public abstract void setSatisfyCond();
 
@@ -267,6 +267,6 @@ public abstract class Event {
      * Abstract method, implemented by subclasses to handle specific events,
      * current context is passed as the only parameter.
      */
-    public abstract void handle(Context context, PSCallback psCallback);
+    public abstract void handle(Context context, EventCallback psCallback);
 
 }

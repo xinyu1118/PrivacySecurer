@@ -1,5 +1,6 @@
 package io.github.privacysecurer.core;
 
+
 import android.content.Context;
 import android.util.Log;
 
@@ -13,13 +14,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-
 /**
  * The unified query interface for all kinds of personal data.
  * You will need to construct an UQI with `UQI uqi = new UQI(context);`
  * To get a stream of personal data, simply call `uqi.getData` with a Stream provider.
  */
-
 public class UQI {
 
     private Map<Function<Void, ?>, Purpose> provider2Purpose;
@@ -66,7 +65,7 @@ public class UQI {
      * @param event the event to be listened to
      * @param callback callback with intermediate data
      */
-    public void addEventListener(Event event, final PSCallback callback) {
+    public void addEventListener(final EventType event, final EventCallback callback) {
         event.handle(context, callback);
         // Monitor boolean variable, whose initialization value is false.
         // If the event happens, its value is set to be true, and developers
@@ -76,18 +75,76 @@ public class UQI {
                 @Override
                 public void onSuccess() {
                     //Log.d("Log", "Event satisfies conditions.");
-                    callback.onEvent();
-                }
 
+                    switch (event.getEventType()) {
+                        case EventType.Audio_Check_Average_Loudness:case EventType.Audio_Check_Average_Loudness_Periodically:case EventType.Audio_Has_Human_Voice:
+                        case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:
+                            callback.onEvent(callback.getAudioCallbackData());
+                            break;
+                        case EventType.Geolocation_Fence:case EventType.Geolocation_Check_Place:case EventType.Geolocation_Updated:
+                        case EventType.Geolocation_Check_Speed:case EventType.Geolocation_Arrive_Destination:case EventType.Geolocation_Turning:
+                        case EventType.Geolocation_Change_City:case EventType.Geolocation_Change_Postcode:
+                            callback.onEvent(callback.getGeolocationCallbackData());
+                            break;
+                        case EventType.Call_Check_Unwanted:case EventType.Call_In_List:case EventType.Call_Logs_Checking:case EventType.Call_Coming_In:
+                        case EventType.Contact_Emails_In_Lists:case EventType.Contact_Lists_Updated:
+                            callback.onEvent(callback.getContactCallbackData());
+                            break;
+                        case EventType.Message_Check_Unwanted:case EventType.Message_In_List:case EventType.Message_Coming_In:
+                        case EventType.Message_Lists_Updated:
+                            callback.onEvent(callback.getMessageCallbackData());
+                            break;
+                        case EventType.Image_Content_Updated:case EventType.Image_File_Updated:case EventType.Image_Has_Face:
+                            callback.onEvent(callback.getImageCallbackData());
+                            break;
+                        case EventType.Aggregative_Event:
+                            callback.onEvent(callback.getAudioCallbackData());
+                            callback.onEvent(callback.getGeolocationCallbackData());
+                            callback.onEvent(callback.getContactCallbackData());
+                            callback.onEvent(callback.getMessageCallbackData());
+                            callback.onEvent(callback.getImageCallbackData());
+                            break;
+                    }
+
+                }
                 @Override
                 public void onFail(String msg) {
                     Log.d("Log", "Receive fail response.");
                 }
             });
         } else {
-            callback.onEvent();
-        }
 
+            switch (event.getEventType()) {
+                case EventType.Audio_Check_Average_Loudness:case EventType.Audio_Check_Average_Loudness_Periodically:case EventType.Audio_Has_Human_Voice:
+                case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:
+                    callback.onEvent(callback.getAudioCallbackData());
+                    break;
+                case EventType.Geolocation_Fence:case EventType.Geolocation_Check_Place:case EventType.Geolocation_Updated:
+                case EventType.Geolocation_Check_Speed:case EventType.Geolocation_Arrive_Destination:case EventType.Geolocation_Turning:
+                case EventType.Geolocation_Change_City:case EventType.Geolocation_Change_Postcode:
+                    callback.onEvent(callback.getGeolocationCallbackData());
+                    break;
+                case EventType.Call_Check_Unwanted:case EventType.Call_In_List:case EventType.Call_Logs_Checking:case EventType.Call_Coming_In:
+                case EventType.Contact_Emails_In_Lists:case EventType.Contact_Lists_Updated:
+                    callback.onEvent(callback.getContactCallbackData());
+                    break;
+                case EventType.Message_Check_Unwanted:case EventType.Message_In_List:case EventType.Message_Coming_In:
+                case EventType.Message_Lists_Updated:
+                    callback.onEvent(callback.getMessageCallbackData());
+                    break;
+                case EventType.Image_Content_Updated:case EventType.Image_File_Updated:case EventType.Image_Has_Face:
+                    callback.onEvent(callback.getImageCallbackData());
+                    break;
+                case EventType.Aggregative_Event:
+                    callback.onEvent(callback.getAudioCallbackData());
+                    callback.onEvent(callback.getGeolocationCallbackData());
+                    callback.onEvent(callback.getContactCallbackData());
+                    callback.onEvent(callback.getMessageCallbackData());
+                    callback.onEvent(callback.getImageCallbackData());
+                    break;
+            }
+
+        }
     }
 
     /**

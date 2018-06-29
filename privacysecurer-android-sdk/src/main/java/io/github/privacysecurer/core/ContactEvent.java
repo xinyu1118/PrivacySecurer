@@ -18,7 +18,7 @@ import io.github.privacysecurer.core.purposes.Purpose;
 /**
  * Contact related events, used for setting event parameters and providing processing methods.
  */
-public class ContactEvent extends Event {
+public class ContactEvent extends EventType {
 
     // Field name options
     public static final String Calls = "calls";
@@ -28,9 +28,9 @@ public class ContactEvent extends Event {
     public static final String Logs = "logs";
 
     // Operator options
-    public static final String In = "in";
-    public static final String From = "from";
-    public static final String Updated = "updated";
+    public static final String IN = "in";
+    public static final String EQ = "eq";
+    public static final String UPDATED = "updated";
 
     /**
      * The boolean flag used to indicate whether the event is triggered or not,
@@ -126,12 +126,12 @@ public class ContactEvent extends Event {
     }
 
     @Override
-    public void setNotificationResponsiveness(Integer recurrence) {
+    public void setMaxNumberOfRecurrences(Integer recurrence) {
         this.recurrence = recurrence;
     }
 
     @Override
-    public Integer getNotificationResponsiveness() {
+    public Integer getMaxNumberOfRecurrences() {
         return this.recurrence;
     }
 
@@ -226,32 +226,32 @@ public class ContactEvent extends Event {
     }
 
     @Override
-    public void and(List<Event> andEvents) {
+    public void and(List<EventType> andEvents) {
 
     }
 
     @Override
-    public List<Event> getAndEvents() {
+    public List<EventType> getAndEvents() {
         return null;
     }
 
     @Override
-    public void or(List<Event> orEvents) {
+    public void or(List<EventType> orEvents) {
 
     }
 
     @Override
-    public List<Event> getOrEvents() {
+    public List<EventType> getOrEvents() {
         return null;
     }
 
     @Override
-    public void not(List<Event> notEvents) {
+    public void not(List<EventType> notEvents) {
 
     }
 
     @Override
-    public List<Event> getNotEvents() {
+    public List<EventType> getNotEvents() {
         return null;
     }
 
@@ -283,42 +283,44 @@ public class ContactEvent extends Event {
     }
 
     @Override
-    public void handle(Context context, final PSCallback psCallback) {
+    public void handle(Context context, final EventCallback eventCallback) {
         UQI uqi = new UQI(context);
-        Boolean booleanFlag = null;
-        List<Boolean> list = new ArrayList<>();
+        //Boolean booleanFlag = null;
+        //List<Boolean> list = new ArrayList<>();
         this.context = context;
+        final ContactCallbackData contactCallbackData = new ContactCallbackData();
 
         // Judge event type
         switch (fieldName) {
             case Calls:
-                this.setEventType(Event.Call_Coming_In);
+                this.setEventType(EventType.Call_Coming_In);
                 break;
             case Caller:
-                if (operator == From)
-                    this.setEventType(Event.Call_Check_Unwanted);
-                if (operator == In)
-                    this.setEventType(Event.Call_In_List);
+                if (operator == EQ)
+                    this.setEventType(EventType.Call_Check_Unwanted);
+                if (operator == IN)
+                    this.setEventType(EventType.Call_In_List);
                 break;
             case Emails:
-                this.setEventType(Event.Contact_Emails_In_Lists);
+                this.setEventType(EventType.Contact_Emails_In_Lists);
                 break;
             case Contacts:
-                this.setEventType(Event.Contact_Lists_Updated);
+                this.setEventType(EventType.Contact_Lists_Updated);
                 break;
             case Logs:
-                this.setEventType(Event.Call_Logs_Checking);
+                this.setEventType(EventType.Call_Logs_Checking);
             default:
                 Log.d("Log", "No matchable event type, please check it again.");
         }
+        contactCallbackData.setEventType(eventType);
 
         switch (eventType) {
-            case Event.Contact_Lists_Updated:
+            case EventType.Contact_Lists_Updated:
                 periodicEvent = true;
                 context.getContentResolver().registerContentObserver(ContactsContract.Contacts.CONTENT_URI,true, contactsObserver);
                 break;
 
-            case Event.Contact_Emails_In_Lists:
+            case EventType.Contact_Emails_In_Lists:
                 periodicEvent = false;
                 boolean contactFlag = false;
 
@@ -342,7 +344,8 @@ public class ContactEvent extends Event {
                         }
                         if (contactFlag) {
                             Log.d("Log", "Contact emails in the existing list.");
-                            psCallback.setEmails(matchEmails);
+                            contactCallbackData.setEmails(matchEmails);
+                            eventCallback.setContactCallbackData(contactCallbackData);
                             setSatisfyCond();
                         } else {
                             Log.d("Log", "Event hasn't happened yet.");
@@ -355,7 +358,7 @@ public class ContactEvent extends Event {
                 }
                 break;
 
-            case Event.Call_Check_Unwanted:
+            case EventType.Call_Check_Unwanted:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider = Call.asUpdates();
@@ -367,7 +370,7 @@ public class ContactEvent extends Event {
 
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                     pStreamProvider.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Unwanted incoming calls.");
@@ -378,7 +381,7 @@ public class ContactEvent extends Event {
                         });
                 break;
 
-            case Event.Call_Logs_Checking:
+            case EventType.Call_Logs_Checking:
                 periodicEvent = false;
                 boolean callFlag = false;
 
@@ -401,13 +404,14 @@ public class ContactEvent extends Event {
 
                 if (callFlag) {
                     Log.d("Log", "Unwanted records from call logs.");
-                    psCallback.setCallRecords(resultItems);
+                    contactCallbackData.setCallRecords(resultItems);
+                    eventCallback.setContactCallbackData(contactCallbackData);
                     setSatisfyCond();
                 } else
                     Log.d("Log", "Event hasn't happened yet.");
                 break;
 
-            case Event.Call_In_List:
+            case EventType.Call_In_List:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider1 = Call.asUpdates();
@@ -419,11 +423,12 @@ public class ContactEvent extends Event {
 
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                     pStreamProvider1.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Incoming call in the blacklist.");
-                                    psCallback.setCaller(input);
+                                    contactCallbackData.setCaller(input);
+                                    eventCallback.setContactCallbackData(contactCallbackData);
                                     setSatisfyCond();
                                 }
 
@@ -472,7 +477,7 @@ public class ContactEvent extends Event {
                 }
                 break;*/
 
-            case Event.Call_Coming_In:
+            case EventType.Call_Coming_In:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider3 = Call.asUpdates();
@@ -483,11 +488,12 @@ public class ContactEvent extends Event {
 
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                     pStreamProvider3.isCancelled = true;
                                 } else {
                                     Log.d("Log", "New calls arrive.");
-                                    psCallback.setCaller(input);
+                                    contactCallbackData.setCaller(input);
+                                    eventCallback.setContactCallbackData(contactCallbackData);
                                     setSatisfyCond();
                                 }
 
@@ -504,11 +510,17 @@ public class ContactEvent extends Event {
      * Builder pattern used to construct contact related events.
      */
     public static class ContactEventBuilder {
+        private String eventDescription;
         private String fieldName;
         private String operator;
         private List<String> lists;
         private String caller;
         private Integer recurrence;
+
+        public ContactEventBuilder setEventDescription(String eventDescription) {
+            this.eventDescription = eventDescription;
+            return this;
+        }
 
         public ContactEventBuilder setFieldName(String fieldName) {
             this.fieldName = fieldName;
@@ -530,12 +542,12 @@ public class ContactEvent extends Event {
             return this;
         }
 
-        public ContactEventBuilder setNotificationResponsiveness(Integer recurrence) {
+        public ContactEventBuilder setMaxNumberOfRecurrences(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
 
-        public Event build() {
+        public EventType build() {
             ContactEvent contactEvent = new ContactEvent();
             if (fieldName != null) {
                 contactEvent.setFieldName(fieldName);
@@ -554,7 +566,7 @@ public class ContactEvent extends Event {
             }
 
             if (recurrence != null) {
-                contactEvent.setNotificationResponsiveness(recurrence);
+                contactEvent.setMaxNumberOfRecurrences(recurrence);
             }
 
             return contactEvent;
@@ -574,7 +586,7 @@ public class ContactEvent extends Event {
         public void onChange(boolean selfChange) {
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
-            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                 context.getContentResolver().unregisterContentObserver(contactsObserver);
             } else {

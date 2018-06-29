@@ -13,20 +13,21 @@ import static java.lang.Boolean.TRUE;
 /**
  * Aggregative events, used for setting event parameters and providing processing methods.
  */
-public class AggregativeEvent extends Event {
+public class EventCollection extends EventType {
+    private String eventType;
 
     /**
      * multiple events to be carried on 'and' operation
      */
-    private List<Event> andEvents;
+    private List<EventType> andEvents;
     /**
      * multiple events to be carried on 'or' operation
      */
-    private List<Event> orEvents;
+    private List<EventType> orEvents;
     /**
      * multiple events to be carried on 'not' operation
      */
-    private List<Event> notEvents;
+    private List<EventType> notEvents;
 
     Boolean andResult;
     Boolean orResult;
@@ -36,7 +37,7 @@ public class AggregativeEvent extends Event {
     long interval = 0;
     int runCount;
 
-    public AggregativeEvent() {
+    public EventCollection() {
         andResult = null;
         orResult = null;
         notResult = null;
@@ -45,12 +46,12 @@ public class AggregativeEvent extends Event {
 
     @Override
     public void setEventType(String eventType) {
-
+        this.eventType = eventType;
     }
 
     @Override
     public String getEventType() {
-        return null;
+        return this.eventType;
     }
 
     @Override
@@ -62,6 +63,7 @@ public class AggregativeEvent extends Event {
     public String getFieldName() {
         return null;
     }
+
 
     @Override
     public void setOperator(String operator) {
@@ -94,12 +96,12 @@ public class AggregativeEvent extends Event {
     }
 
     @Override
-    public void setNotificationResponsiveness(Integer recurrence) {
+    public void setMaxNumberOfRecurrences(Integer recurrence) {
 
     }
 
     @Override
-    public Integer getNotificationResponsiveness() {
+    public Integer getMaxNumberOfRecurrences() {
         return null;
     }
 
@@ -194,32 +196,32 @@ public class AggregativeEvent extends Event {
     }
 
     @Override
-    public void and(List<Event> andEvents) {
+    public void and(List<EventType> andEvents) {
         this.andEvents = andEvents;
     }
 
     @Override
-    public List<Event> getAndEvents() {
+    public List<EventType> getAndEvents() {
         return this.andEvents;
     }
 
     @Override
-    public void or(List<Event> orEvents) {
+    public void or(List<EventType> orEvents) {
         this.orEvents = orEvents;
     }
 
     @Override
-    public List<Event> getOrEvents() {
+    public List<EventType> getOrEvents() {
         return this.orEvents;
     }
 
     @Override
-    public void not(List<Event> notEvents) {
+    public void not(List<EventType> notEvents) {
         this.notEvents = notEvents;
     }
 
     @Override
-    public List<Event> getNotEvents() {
+    public List<EventType> getNotEvents() {
         return this.notEvents;
     }
 
@@ -245,7 +247,8 @@ public class AggregativeEvent extends Event {
 
 
     @Override
-    public void handle(Context context, PSCallback psCallback) {
+    public void handle(Context context, EventCallback eventCallback) {
+        this.setEventType(EventType.Aggregative_Event);
 
          /*
          * Deal with logic 'and' operation for multiple events
@@ -255,13 +258,13 @@ public class AggregativeEvent extends Event {
          * event has been triggered.
          */
         if (andEvents != null) {
-            for (Event e : andEvents) {
+            for (EventType e : andEvents) {
                 // To get the longest interval for all events
                 if ((e.getDuration()+e.getInterval()) > interval) {
                     interval = e.getDuration()+e.getInterval();
                 }
 
-                final Event event = e;
+                final EventType event = e;
                 // To monitor the boolean variable satisfyCond change
                 e.setBroadListener(new BroadListener() {
                     @Override
@@ -275,7 +278,7 @@ public class AggregativeEvent extends Event {
                 });
 
                 // To execute the specific event
-                e.handle(context, psCallback);
+                e.handle(context, eventCallback);
             }
         }
 
@@ -283,12 +286,12 @@ public class AggregativeEvent extends Event {
          * Deal with logic 'or' operation for multiple events, the same as 'and' operation
          */
         if (orEvents != null) {
-            for (Event e : orEvents) {
+            for (EventType e : orEvents) {
                 if (e.getInterval() > interval) {
                     interval = e.getInterval();
                 }
 
-                final Event event = e;
+                final EventType event = e;
                 e.setBroadListener(new BroadListener() {
                     @Override
                     public void onSuccess() {
@@ -300,7 +303,7 @@ public class AggregativeEvent extends Event {
                     }
                 });
 
-                e.handle(context, psCallback);
+                e.handle(context, eventCallback);
             }
         }
 
@@ -308,12 +311,12 @@ public class AggregativeEvent extends Event {
          * Deal with logic 'not' operation for multiple events, the same as 'and' operation
          */
         if (notEvents != null) {
-            for (Event e : notEvents) {
+            for (EventType e : notEvents) {
                 if (e.getInterval() > interval) {
                     interval = e.getInterval();
                 }
 
-                final Event event = e;
+                final EventType event = e;
                 e.setBroadListener(new BroadListener() {
                     @Override
                     public void onSuccess() {
@@ -325,7 +328,7 @@ public class AggregativeEvent extends Event {
                     }
                 });
 
-                e.handle(context, psCallback);
+                e.handle(context, eventCallback);
             }
         }
 
@@ -401,13 +404,13 @@ public class AggregativeEvent extends Event {
                     // Don't use 'if (andEvents != null)' as condition judgement statements
                     // Although the list size equals to 0, but it's not null
                     if (andEvents != null) {
-                            andResult = andEvents.get(0).getSatisfyCond();
-                            for (int i = 1; i < andEvents.size(); i++) {
-                                //Log.d("Log", "and operations:");
-                                andResult = andResult && andEvents.get(i).getSatisfyCond();
-                                //Log.d("Log", String.valueOf(andResult));
-                            }
-                            result = result && andResult;
+                        andResult = andEvents.get(0).getSatisfyCond();
+                        for (int i = 1; i < andEvents.size(); i++) {
+                            //Log.d("Log", "and operations:");
+                            andResult = andResult && andEvents.get(i).getSatisfyCond();
+                            //Log.d("Log", String.valueOf(andResult));
+                        }
+                        result = result && andResult;
                     }
 
                     if (orEvents != null) {
@@ -449,42 +452,48 @@ public class AggregativeEvent extends Event {
     /**
      * Builder pattern used to construct aggregative related events.
      */
-    public static class AggregativeEventBuilder {
-        private List<Event> andEvents = new ArrayList<>();
-        private List<Event> orEvents = new ArrayList<>();
-        private List<Event> notEvents = new ArrayList<>();
+    public static class EventCollectionBuilder {
+        private String eventDescription;
+        private List<EventType> andEvents = new ArrayList<>();
+        private List<EventType> orEvents = new ArrayList<>();
+        private List<EventType> notEvents = new ArrayList<>();
 
-        public AggregativeEventBuilder and(Event andEvent) {
+        public EventCollectionBuilder setEventDescription(String eventDescription) {
+            this.eventDescription = eventDescription;
+            return this;
+        }
+
+        public EventCollectionBuilder and(EventType andEvent) {
             andEvents.add(andEvent);
             return this;
         }
 
-        public AggregativeEventBuilder or(Event orEvent) {
+        public EventCollectionBuilder or(EventType orEvent) {
             orEvents.add(orEvent);
             return this;
         }
 
-        public AggregativeEventBuilder not(Event notEvent) {
+        public EventCollectionBuilder not(EventType notEvent) {
             notEvents.add(notEvent);
             return this;
         }
 
-        public Event build() {
-            AggregativeEvent aggregativeEvent = new AggregativeEvent();
+        public EventType build() {
+            EventCollection eventCollection = new EventCollection();
 
             if (andEvents.size() != 0) {
-                aggregativeEvent.and(andEvents);
+                eventCollection.and(andEvents);
             }
 
             if (orEvents.size() != 0) {
-                aggregativeEvent.or(orEvents);
+                eventCollection.or(orEvents);
             }
 
             if (notEvents.size() != 0) {
-                aggregativeEvent.or(notEvents);
+                eventCollection.or(notEvents);
             }
 
-            return aggregativeEvent;
+            return eventCollection;
         }
     }
 

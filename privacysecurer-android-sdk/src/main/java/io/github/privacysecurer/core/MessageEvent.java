@@ -7,18 +7,15 @@ import android.net.Uri;
 import android.os.Handler;
 import android.util.Log;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import io.github.privacysecurer.communication.Contact;
 import io.github.privacysecurer.communication.Message;
-import io.github.privacysecurer.core.exceptions.PSException;
 import io.github.privacysecurer.core.purposes.Purpose;
 
 /**
  * Message related events, used for setting event parameters and providing processing methods.
  */
-public class MessageEvent extends Event {
+public class MessageEvent extends EventType {
 
     // Field name options
     public static final String Messages = "messages";
@@ -26,9 +23,9 @@ public class MessageEvent extends Event {
     public static final String MessageLists = "messageLists";
 
     // Operator options
-    public static final String In = "in";
-    public static final String From = "from";
-    public static final String Updated = "updated";
+    public static final String IN = "in";
+    public static final String EQ = "eq";
+    public static final String UPDATED = "updated";
 
     /**
      * The boolean flag used to indicate whether the event is triggered or not,
@@ -121,12 +118,12 @@ public class MessageEvent extends Event {
     }
 
     @Override
-    public void setNotificationResponsiveness(Integer recurrence) {
+    public void setMaxNumberOfRecurrences(Integer recurrence) {
         this.recurrence = recurrence;
     }
 
     @Override
-    public Integer getNotificationResponsiveness() {
+    public Integer getMaxNumberOfRecurrences() {
         return this.recurrence;
     }
 
@@ -221,32 +218,32 @@ public class MessageEvent extends Event {
     }
 
     @Override
-    public void and(List<Event> andEvents) {
+    public void and(List<EventType> andEvents) {
 
     }
 
     @Override
-    public List<Event> getAndEvents() {
+    public List<EventType> getAndEvents() {
         return null;
     }
 
     @Override
-    public void or(List<Event> orEvents) {
+    public void or(List<EventType> orEvents) {
 
     }
 
     @Override
-    public List<Event> getOrEvents() {
+    public List<EventType> getOrEvents() {
         return null;
     }
 
     @Override
-    public void not(List<Event> notEvents) {
+    public void not(List<EventType> notEvents) {
 
     }
 
     @Override
-    public List<Event> getNotEvents() {
+    public List<EventType> getNotEvents() {
         return null;
     }
 
@@ -279,32 +276,34 @@ public class MessageEvent extends Event {
 
 
     @Override
-    public void handle(Context context, final PSCallback psCallback) {
+    public void handle(Context context, final EventCallback eventCallback) {
         UQI uqi = new UQI(context);
-        Boolean booleanFlag = null;
-        List<Boolean> list = new ArrayList<>();
+        //Boolean booleanFlag = null;
+        //List<Boolean> list = new ArrayList<>();
         this.context = context;
+        final MessageCallbackData messageCallbackData = new MessageCallbackData();
 
         // Judge event type
         switch (fieldName) {
             case Messages:
-                this.setEventType(Event.Message_Coming_In);
+                this.setEventType(EventType.Message_Coming_In);
                 break;
             case Sender:
-                if (operator == From)
-                    this.setEventType(Event.Message_Check_Unwanted);
-                if (operator == In)
-                    this.setEventType(Event.Message_In_List);
+                if (operator == EQ)
+                    this.setEventType(EventType.Message_Check_Unwanted);
+                if (operator == IN)
+                    this.setEventType(EventType.Message_In_List);
                 break;
             case MessageLists:
-                this.setEventType(Event.Message_Lists_Updated);
+                this.setEventType(EventType.Message_Lists_Updated);
                 break;
             default:
                 Log.d("Log", "No matchable event type, please check it again.");
         }
+        messageCallbackData.setEventType(eventType);
 
         switch (eventType) {
-            case Event.Message_Check_Unwanted:
+            case EventType.Message_Check_Unwanted:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider = Message.asIncomingSMS();
@@ -316,7 +315,7 @@ public class MessageEvent extends Event {
                             protected void onInput(String input) {
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                     pStreamProvider.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Unwanted incoming messages.");
@@ -326,12 +325,12 @@ public class MessageEvent extends Event {
                         });
                 break;
 
-            case Event.Message_Lists_Updated:
+            case EventType.Message_Lists_Updated:
                 periodicEvent = true;
                 context.getContentResolver().registerContentObserver(Uri.parse("content://sms"),true, messagesObserver);
                 break;
 
-            case Event.Message_In_List:
+            case EventType.Message_In_List:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider1 = Message.asIncomingSMS();
@@ -348,7 +347,8 @@ public class MessageEvent extends Event {
                                     pStreamProvider1.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Incoming message in the blacklist.");
-                                    psCallback.setCaller(input);
+                                    messageCallbackData.setCaller(input);
+                                    eventCallback.setMessageCallbackData(messageCallbackData);
                                     setSatisfyCond();
                                 }
 
@@ -396,7 +396,7 @@ public class MessageEvent extends Event {
                 }
                 break;*/
 
-            case Event.Message_Coming_In:
+            case EventType.Message_Coming_In:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider3 = Message.asIncomingSMS();
@@ -411,7 +411,8 @@ public class MessageEvent extends Event {
                                     pStreamProvider3.isCancelled = true;
                                 } else {
                                     Log.d("Log", "New messages arrive.");
-                                    psCallback.setCaller(input);
+                                    messageCallbackData.setCaller(input);
+                                    eventCallback.setMessageCallbackData(messageCallbackData);
                                     setSatisfyCond();
                                 }
                             }
@@ -428,11 +429,17 @@ public class MessageEvent extends Event {
      * Builder pattern used to construct message related events.
      */
     public static class MessageEventBuilder {
+        private String eventDescription;
         private String fieldName;
         private String operator;
         private String caller;
         private List<String> lists;
         private Integer recurrence;
+
+        public MessageEventBuilder setEventDescription(String eventDescription) {
+            this.eventDescription = eventDescription;
+            return this;
+        }
 
         public MessageEventBuilder setFieldName(String fieldName) {
             this.fieldName = fieldName;
@@ -454,12 +461,12 @@ public class MessageEvent extends Event {
             return this;
         }
 
-        public MessageEventBuilder setNotificationResponsiveness(Integer recurrence) {
+        public MessageEventBuilder setMaxNumberOfRecurrences(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
 
-        public Event build() {
+        public EventType build() {
             MessageEvent messageEvent = new MessageEvent();
 
             if (fieldName != null) {
@@ -479,7 +486,7 @@ public class MessageEvent extends Event {
             }
 
             if (recurrence != null) {
-                messageEvent.setNotificationResponsiveness(recurrence);
+                messageEvent.setMaxNumberOfRecurrences(recurrence);
             }
 
             return messageEvent;
@@ -499,7 +506,7 @@ public class MessageEvent extends Event {
         public void onChange(boolean selfChange) {
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
-            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                 context.getContentResolver().unregisterContentObserver(messagesObserver);
             } else {

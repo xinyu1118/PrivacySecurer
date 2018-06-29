@@ -1,153 +1,81 @@
 package io.github.privacysecurer.core;
 
 
-import java.util.List;
-
-import io.github.privacysecurer.location.LatLon;
-
 /**
  * Audio related callbacks with intermediate data.
  */
-public abstract class AudioCallback extends PSCallback {
-
-    /**
-     * Intermediate data to be called back, average loudness in dB.
-     */
-    private static Double avgLoudness;
-    /**
-     * Intermediate data to be called back, maximum loudness in dB.
-     */
-    private static Double maxLoudness;
+public abstract class AudioCallback extends EventCallback {
+    private AudioCallbackData audioCallbackData;
 
 
     @Override
-    public void setAvgLoudness(Double avgLoudness) {
-        this.avgLoudness = avgLoudness;
+    public void setAudioCallbackData(AudioCallbackData audioCallbackData) {
+        this.audioCallbackData = audioCallbackData;
     }
 
     @Override
-    public Double getAvgLoudness(){
-        return this.avgLoudness;
+    public AudioCallbackData getAudioCallbackData() {
+        return this.audioCallbackData;
     }
 
     @Override
-    public void setMaxLoudness(Double maxLoudness) {
-        this.maxLoudness = maxLoudness;
-    }
-
-    @Override
-    public Double getMaxLoudness() {
-        return this.maxLoudness;
-    }
-
-    @Override
-    public void setCurrentTime(long currentTime) {
+    public void setGeolocationCallbackData(GeolocationCallbackData geolocationCallbackData) {
 
     }
 
     @Override
-    public long getCurrentTime() {
-        return 0;
-    }
-
-    @Override
-    public void setSpeed(Float speed) {
-
-    }
-
-    @Override
-    public Float getSpeed() {
+    public GeolocationCallbackData getGeolocationCallbackData() {
         return null;
     }
 
     @Override
-    public void setCity(String city) {
+    public void setContactCallbackData(ContactCallbackData contactCallbackData) {
 
     }
 
     @Override
-    public String getCity() {
+    public ContactCallbackData getContactCallbackData() {
         return null;
     }
 
     @Override
-    public void setPostcode(String postcode) {
+    public void setMessageCallbackData(MessageCallbackData messageCallbackData) {
 
     }
 
     @Override
-    public String getPostcode() {
+    public MessageCallbackData getMessageCallbackData() {
         return null;
     }
 
     @Override
-    public void setDirection(String direction) {
+    public void setImageCallbackData(ImageCallbackData imageCallbackData) {
 
     }
 
     @Override
-    public String getDirection() {
+    public ImageCallbackData getImageCallbackData() {
         return null;
     }
 
     @Override
-    public void setNumber(int number) {
+    public void onEvent(GeolocationCallbackData geolocationCallbackData) {
 
     }
 
     @Override
-    public int getNumber() {
-        return 0;
-    }
-
-    @Override
-    public void setLatLon(LatLon latLon) {
+    public void onEvent(ContactCallbackData contactCallbackData) {
 
     }
 
     @Override
-    public LatLon getLatLon() {
-        return null;
-    }
-
-    @Override
-    public void setDistance(Double distance) {
+    public void onEvent(MessageCallbackData messageCallbackData) {
 
     }
 
     @Override
-    public Double getDistance() {
-        return null;
-    }
+    public void onEvent(ImageCallbackData imageCallbackData) {
 
-    @Override
-    public void setCallRecords(List<Item> callRecords) {
-
-    }
-
-    @Override
-    public List<Item> getCallRecords() {
-        return null;
-    }
-
-    @Override
-    public void setEmails(List<String> emails) {
-
-    }
-
-    @Override
-    public List<String> getEmails() {
-        return null;
-    }
-
-    @Override
-    public void setCaller(String caller) {
-
-    }
-
-    @Override
-    public String getCaller() {
-        return null;
     }
 
 }

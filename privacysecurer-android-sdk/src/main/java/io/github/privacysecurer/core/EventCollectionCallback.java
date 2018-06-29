@@ -1,31 +1,34 @@
 package io.github.privacysecurer.core;
 
-
 /**
- * Contact and call related callbacks with intermediate data.
+ * Multiple events callbacks with intermediate data.
  */
-public abstract class ContactCallback extends EventCallback {
+public abstract class EventCollectionCallback extends EventCallback {
+    private AudioCallbackData audioCallbackData;
+    private GeolocationCallbackData geolocationCallbackData;
     private ContactCallbackData contactCallbackData;
+    private MessageCallbackData messageCallbackData;
+    private ImageCallbackData imageCallbackData;
 
 
     @Override
     public void setAudioCallbackData(AudioCallbackData audioCallbackData) {
-
+        this.audioCallbackData = audioCallbackData;
     }
 
     @Override
     public AudioCallbackData getAudioCallbackData() {
-        return null;
+        return this.audioCallbackData;
     }
 
     @Override
     public void setGeolocationCallbackData(GeolocationCallbackData geolocationCallbackData) {
-
+        this.geolocationCallbackData = geolocationCallbackData;
     }
 
     @Override
     public GeolocationCallbackData getGeolocationCallbackData() {
-        return null;
+        return this.geolocationCallbackData;
     }
 
     @Override
@@ -40,41 +43,22 @@ public abstract class ContactCallback extends EventCallback {
 
     @Override
     public void setMessageCallbackData(MessageCallbackData messageCallbackData) {
-
+        this.messageCallbackData = messageCallbackData;
     }
 
     @Override
     public MessageCallbackData getMessageCallbackData() {
-        return null;
+        return this.messageCallbackData;
     }
 
     @Override
     public void setImageCallbackData(ImageCallbackData imageCallbackData) {
-
+        this.imageCallbackData = imageCallbackData;
     }
 
     @Override
     public ImageCallbackData getImageCallbackData() {
-        return null;
+        return this.imageCallbackData;
     }
 
-    @Override
-    public void onEvent(AudioCallbackData audioCallbackData) {
-
-    }
-
-    @Override
-    public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-
-    }
-
-    @Override
-    public void onEvent(MessageCallbackData messageCallbackData) {
-
-    }
-
-    @Override
-    public void onEvent(ImageCallbackData imageCallbackData) {
-
-    }
 }

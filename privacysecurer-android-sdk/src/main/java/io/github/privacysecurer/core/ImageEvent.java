@@ -3,14 +3,11 @@ package io.github.privacysecurer.core;
 
 import android.content.Context;
 import android.database.ContentObserver;
-import android.net.Uri;
 import android.os.FileObserver;
 import android.os.Handler;
 import android.provider.MediaStore;
-import android.support.annotation.Nullable;
 import android.util.Log;
 
-import java.io.File;
 import java.util.List;
 
 import io.github.privacysecurer.core.exceptions.PSException;
@@ -21,7 +18,7 @@ import io.github.privacysecurer.image.ImageOperators;
 /**
  * Image related events, used for setting event parameters and providing processing methods.
  */
-public class ImageEvent extends Event {
+public class ImageEvent extends EventType {
 
     // Field name options
     public static final String MediaLibrary = "mediaLibrary";
@@ -29,7 +26,7 @@ public class ImageEvent extends Event {
     public static final String Images = "images";
 
     // Operator options
-    public static final String Updated = "updated";
+    public static final String UPDATED = "updated";
     public static final String HasFace = "hasFace";
 
     /**
@@ -121,12 +118,12 @@ public class ImageEvent extends Event {
     }
 
     @Override
-    public void setNotificationResponsiveness(Integer recurrence) {
+    public void setMaxNumberOfRecurrences(Integer recurrence) {
         this.recurrence = recurrence;
     }
 
     @Override
-    public Integer getNotificationResponsiveness() {
+    public Integer getMaxNumberOfRecurrences() {
         return this.recurrence;
     }
 
@@ -221,32 +218,32 @@ public class ImageEvent extends Event {
     }
 
     @Override
-    public void and(List<Event> andEvents) {
+    public void and(List<EventType> andEvents) {
 
     }
 
     @Override
-    public List<Event> getAndEvents() {
+    public List<EventType> getAndEvents() {
         return null;
     }
 
     @Override
-    public void or(List<Event> orEvents) {
+    public void or(List<EventType> orEvents) {
 
     }
 
     @Override
-    public List<Event> getOrEvents() {
+    public List<EventType> getOrEvents() {
         return null;
     }
 
     @Override
-    public void not(List<Event> notEvents) {
+    public void not(List<EventType> notEvents) {
 
     }
 
     @Override
-    public List<Event> getNotEvents() {
+    public List<EventType> getNotEvents() {
         return null;
     }
 
@@ -278,33 +275,35 @@ public class ImageEvent extends Event {
     }
 
     @Override
-    public void handle(Context context, PSCallback psCallback) {
+    public void handle(Context context, EventCallback eventCallback) {
         UQI uqi = new UQI(context);
         Boolean booleanFlag = null;
         this.context = context;
+        ImageCallbackData imageCallbackData = new ImageCallbackData();
 
         // Judge event type
         switch (fieldName) {
             case MediaLibrary:
-                this.setEventType(Event.Image_Content_Updated);
+                this.setEventType(EventType.Image_Content_Updated);
                 break;
             case FileOrFolder:
-                this.setEventType(Event.Image_File_Updated);
+                this.setEventType(EventType.Image_File_Updated);
                 break;
             case Images:
-                this.setEventType(Event.Image_Has_Face);
+                this.setEventType(EventType.Image_Has_Face);
                 break;
             default:
                 Log.d("Log", "No matchable event type, please check it again.");
         }
+        imageCallbackData.setEventType(eventType);
 
         switch (eventType) {
-            case Event.Image_Content_Updated:
+            case EventType.Image_Content_Updated:
                 periodicEvent = true;
                 context.getContentResolver().registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,true, imagesObserver);
                 break;
 
-            case Event.Image_Has_Face:
+            case EventType.Image_Has_Face:
                 periodicEvent = false;
                 if (path.isEmpty())
                     Log.d("Log", "Path doesn't exist.");
@@ -351,10 +350,16 @@ public class ImageEvent extends Event {
      * Builder pattern used to construct image related events.
      */
     public static class ImageEventBuilder {
+        private String eventDescription;
         private String fieldName;
         private String operator;
         private String path;
         private Integer recurrence;
+
+        public ImageEventBuilder setEventDescription(String eventDescription) {
+            this.eventDescription = eventDescription;
+            return this;
+        }
 
         public ImageEventBuilder setFieldName(String fieldName) {
             this.fieldName = fieldName;
@@ -371,12 +376,12 @@ public class ImageEvent extends Event {
             return this;
         }
 
-        public ImageEventBuilder setNotificationResponsiveness(Integer recurrence) {
+        public ImageEventBuilder setMaxNumberOfRecurrences(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
 
-        public Event build() {
+        public EventType build() {
             ImageEvent imageEvent = new ImageEvent();
 
             if (fieldName != null) {
@@ -392,7 +397,7 @@ public class ImageEvent extends Event {
             }
 
             if (recurrence != null) {
-                imageEvent.setNotificationResponsiveness(recurrence);
+                imageEvent.setMaxNumberOfRecurrences(recurrence);
             }
 
             return imageEvent;
@@ -412,7 +417,7 @@ public class ImageEvent extends Event {
         public void onChange(boolean selfChange) {
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
-            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                 //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
                 context.getContentResolver().unregisterContentObserver(imagesObserver);
             } else {
@@ -436,7 +441,7 @@ public class ImageEvent extends Event {
             int event = i & FileObserver.ALL_EVENTS;
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
-            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                 filesObserver.stopWatching();
             } else {
                 if (event == FileObserver.DELETE) {

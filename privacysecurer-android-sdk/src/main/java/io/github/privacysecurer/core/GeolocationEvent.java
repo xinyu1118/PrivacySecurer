@@ -28,7 +28,7 @@ import static android.content.Context.BATTERY_SERVICE;
 /**
  * Location related events, used for setting event parameters and providing processing methods.
  */
-public class GeolocationEvent extends Event {
+public class GeolocationEvent extends EventType {
 
     // Field name options
     public static final String LatLon = "latlon";
@@ -39,12 +39,12 @@ public class GeolocationEvent extends Event {
     public static final String Distance = "distance";
 
     // Operator options
-    public static final String In = "in";
-    public static final String Out = "out";
-    public static final String InOrOut = "inOrOut";
-    public static final String Updated = "updated";
-    public static final String Under = "under";
-    public static final String Over = "over";
+    public static final String IN = "in";
+    public static final String OUT = "out";
+    public static final String CROSSES = "crosses";
+    public static final String UPDATED = "updated";
+    public static final String LTE = "lte";
+    public static final String GTE = "gte";
 
     /**
      * The boolean flag used to indicate whether the event is triggered or not,
@@ -119,6 +119,7 @@ public class GeolocationEvent extends Event {
     private static Object monitor = new Object();
     private static boolean isCharged = false;
     private boolean broadcastRegistered = false;
+    private boolean crossesFirstExecute = true;
     BroadcastReceiver receiver;
     Context mContext;
 
@@ -173,12 +174,12 @@ public class GeolocationEvent extends Event {
     }
 
     @Override
-    public void setNotificationResponsiveness(Integer recurrence) {
+    public void setMaxNumberOfRecurrences(Integer recurrence) {
         this.recurrence = recurrence;
     }
 
     @Override
-    public Integer getNotificationResponsiveness() {
+    public Integer getMaxNumberOfRecurrences() {
         return this.recurrence;
     }
 
@@ -273,32 +274,32 @@ public class GeolocationEvent extends Event {
     }
 
     @Override
-    public void and(List<Event> andEvents) {
+    public void and(List<EventType> andEvents) {
 
     }
 
     @Override
-    public List<Event> getAndEvents() {
+    public List<EventType> getAndEvents() {
         return null;
     }
 
     @Override
-    public void or(List<Event> orEvents) {
+    public void or(List<EventType> orEvents) {
 
     }
 
     @Override
-    public List<Event> getOrEvents() {
+    public List<EventType> getOrEvents() {
         return null;
     }
 
     @Override
-    public void not(List<Event> notEvents) {
+    public void not(List<EventType> notEvents) {
 
     }
 
     @Override
-    public List<Event> getNotEvents() {
+    public List<EventType> getNotEvents() {
         return null;
     }
 
@@ -331,23 +332,24 @@ public class GeolocationEvent extends Event {
 
     @RequiresApi(api = Build.VERSION_CODES.LOLLIPOP)
     @Override
-    public void handle(final Context context, final PSCallback psCallback) {
+    public void handle(final Context context, final EventCallback eventCallback) {
         UQI uqi = new UQI(context);
         mContext = context;
+        final GeolocationCallbackData geolocationCallbackData = new GeolocationCallbackData();
 
         // Get the current battery level
         BatteryManager bm = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
         int batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
 
-        // Add interval settings based on the battery level
+        // Add interval and precise settings based on the battery level
         if (optimizationMatrix != null) {
             for (int i=0; i<optimizationMatrix.size(); i++) {
                 if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel &&
                         (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel) {
-                    if (optimizationMatrix.get(i).get(2) != Event.Off) {
+                    if (optimizationMatrix.get(i).get(2) != EventType.Off) {
                         interval = (Long) optimizationMatrix.get(i).get(2);
 
-                        if (optimizationMatrix.get(i).get(3) != Event.DefaultPrecision)
+                        if (optimizationMatrix.get(i).get(3) != EventType.DefaultPrecision)
                             locationPrecision = (String) optimizationMatrix.get(i).get(3);
                     }
                     else {
@@ -373,69 +375,39 @@ public class GeolocationEvent extends Event {
             }
         }
 
-
-        // add power constrains
-        /*if (lobatInterval != 0) {
-            BatteryManager bm = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
-            int batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-
-            // when in low battery level, enlarge the data sampling interval and turn down location precision
-            if (batteryLevel >= lowerBound && batteryLevel < upperBound) {
-                interval = lobatInterval;
-                if (lobatPrecision != null)
-                    locationPrecision = lobatPrecision;
-            }
-
-            // when in extremely low battery level, sleep until charged.
-            if (batteryLevel < lowerBound) {
-                // get current charging status
-                IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-                Intent batteryStatus = context.registerReceiver(null, intentFilter);
-                int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
-                boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                        status == BatteryManager.BATTERY_STATUS_FULL;
-
-                // if the device is charging, just sample data immediately, otherwise
-                // sleep until it is charged.
-                if (!isCharging) {
-                    new WaitThread().start();
-                    new NotifyThread().start();
-                }
-            }
-        }*/
-
         switch (fieldName) {
             case LatLon:
                 if (placeName != null) {
-                    this.setEventType(Event.Geolocation_Check_Place);
+                    this.setEventType(EventType.Geolocation_Check_Place);
                 } else {
-                    if (operator.equals(Updated))
-                        this.setEventType(Event.Geolocation_Updated);
+                    if (operator.equals(UPDATED))
+                        this.setEventType(EventType.Geolocation_Updated);
                     else
-                        this.setEventType(Event.Geolocation_Fence);
+                        this.setEventType(EventType.Geolocation_Fence);
                 }
                 break;
             case Speed:
-                this.setEventType(Event.Geolocation_Check_Speed);
+                this.setEventType(EventType.Geolocation_Check_Speed);
                 break;
             case City:
-                this.setEventType(Event.Geolocation_Change_City);
+                this.setEventType(EventType.Geolocation_Change_City);
                 break;
             case Postcode:
-                this.setEventType(Event.Geolocation_Change_Postcode);
+                this.setEventType(EventType.Geolocation_Change_Postcode);
                 break;
             case Direction:
-                this.setEventType(Event.Geolocation_Turning);
+                this.setEventType(EventType.Geolocation_Turning);
                 break;
             case Distance:
-                this.setEventType(Event.Geolocation_Arrive_Destination);
+                this.setEventType(EventType.Geolocation_Arrive_Destination);
                 break;
             default:
                 Log.d("Log", "No matchable event type, please check it again.");
         }
+        geolocationCallbackData.setEventType(eventType);
 
         switch (eventType) {
-            case Event.Geolocation_Fence:
+            case EventType.Geolocation_Fence:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider = Geolocation.asUpdates(interval, Geolocation.LEVEL_EXACT);
@@ -446,15 +418,16 @@ public class GeolocationEvent extends Event {
                             protected void onInput(Boolean geoFence) {
 
                                 switch (operator) {
-                                    case In:
+                                    case IN:
                                         if (geoFence) {
                                             counter++;
-                                            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                                 pStreamProvider.isCancelled = true;
                                             } else {
                                                 Log.d("Log", "Location is in the region.");
                                                 Toast.makeText(context, "In the region!", Toast.LENGTH_SHORT).show();
-                                                //psCallback.setNumber(counter);
+                                                geolocationCallbackData.setCurrentTime(System.currentTimeMillis());
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -463,15 +436,16 @@ public class GeolocationEvent extends Event {
                                         }
                                         break;
 
-                                    case Out:
+                                    case OUT:
                                         if (!geoFence) {
                                             counter++;
-                                            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                                 pStreamProvider.isCancelled = true;
                                             } else {
                                                 Log.d("Log", "Location isn't in the region.");
                                                 Toast.makeText(context, "Out of the region!", Toast.LENGTH_SHORT).show();
-                                                //psCallback.setNumber(counter);
+                                                geolocationCallbackData.setCurrentTime(System.currentTimeMillis());
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
@@ -480,19 +454,27 @@ public class GeolocationEvent extends Event {
                                         }
                                         break;
 
-                                    case InOrOut:
+                                    case CROSSES:
                                         if (geoFence.equals(lastGeofence)) {
                                             Log.d("Log", "Event hasn't happened yet.");
                                             satisfyCond = false;
                                         } else {
+
                                             counter++;
-                                            if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                                 pStreamProvider.isCancelled = true;
                                             } else {
-                                                Log.d("Log", "Entered or leaved the geofence.");
-                                                Toast.makeText(context, "In or Out of the region!", Toast.LENGTH_SHORT).show();
-                                                psCallback.setNumber(counter);
-                                                setSatisfyCond();
+
+                                                // Initially geofence isn't equal to lastGeofence, but it doesn't mean the user crosses
+                                                // the area, thus we use a boolean flag to deal with this situation.
+                                                if (!crossesFirstExecute) {
+                                                    Log.d("Log", "Entered or leaved the geofence.");
+                                                    Toast.makeText(context, "Cross the region!", Toast.LENGTH_SHORT).show();
+                                                    geolocationCallbackData.setNumber(counter);
+                                                    eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                    setSatisfyCond();
+                                                }
+                                                crossesFirstExecute = false;
                                             }
                                         }
                                         lastGeofence = geoFence;
@@ -506,7 +488,7 @@ public class GeolocationEvent extends Event {
                         });
                 break;
 
-            case Event.Geolocation_Check_Place:
+            case EventType.Geolocation_Check_Place:
                 periodicEvent = true;
                 // Get the latitude and longitude from the place name
                 Geocoder geocoder = new Geocoder(context);
@@ -531,15 +513,16 @@ public class GeolocationEvent extends Event {
                         .forEach("distance", new Callback<Double>() {
                             @Override
                             protected void onInput(Double distance) {
-                                if (operator.equals(In)) {
+                                if (operator.equals(IN)) {
 
                                     if (distance <= radius) {
                                         counter++;
-                                        if (recurrence != Event.ContinuousSampling && counter > recurrence)
+                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence)
                                             pStreamProvider1.isCancelled = true;
                                         else {
                                             Log.d("Log", "In " + placeName + ".");
-                                            psCallback.setCurrentTime(System.currentTimeMillis());
+                                            geolocationCallbackData.setCurrentTime(System.currentTimeMillis());
+                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                             setSatisfyCond();
                                         }
                                     } else {
@@ -547,42 +530,15 @@ public class GeolocationEvent extends Event {
                                         satisfyCond = false;
                                     }
 
-                                    /*if (distance <= radius) {
-                                        currentArea = "in";
-                                        counter++;
-                                        if (recurrence != null && counter > recurrence) {
-                                            //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
-                                            pStreamProvider1.isCancelled = true;
-                                        } else {
-                                            Log.d("Log", "In " + placeName + ".");
-                                            setSatisfyCond();
-                                        }
-                                        // when a user enters the area first time, start counting.
-                                        if (lastArea.equals("out"))
-                                            startTime = System.currentTimeMillis();
-                                    } else {
-                                        currentArea = "out";
-                                        Log.d("Log", "Event hasn't happened yet.");
-                                        if (lastArea.equals("in")) {
-                                            // when a user leaves the area first time, stop counting.
-                                            stopTime = System.currentTimeMillis();
-                                            if (startTime != 0 && stopTime >= startTime) {
-                                                durationOfStay = stopTime - startTime;
-                                                psCallback.setDurationOfStay(durationOfStay);
-                                                inPlaceFlag = true;
-                                            }
-                                        }
-                                    }
-                                    lastArea = currentArea;*/
-
                                 } else {
                                     if (distance > radius) {
                                         counter++;
-                                        if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                             pStreamProvider1.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Out of " + placeName + ".");
-                                            psCallback.setCurrentTime(System.currentTimeMillis());
+                                            geolocationCallbackData.setCurrentTime(System.currentTimeMillis());
+                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                             setSatisfyCond();
                                         }
                                     } else {
@@ -595,7 +551,7 @@ public class GeolocationEvent extends Event {
                         });
                 break;
 
-            case Event.Geolocation_Check_Speed:
+            case EventType.Geolocation_Check_Speed:
                 periodicEvent = true;
                 BigDecimal dThreshold = new BigDecimal(String.valueOf(threshold));
                 final Float fThreshold = dThreshold.floatValue();
@@ -606,16 +562,17 @@ public class GeolocationEvent extends Event {
                             @Override
                             protected void onInput(Float speed) {
 
-                                if (operator.equals(Over)) {
+                                if (operator.equals(GTE)) {
 
                                     if (speed >= fThreshold) {
                                         counter++;
-                                        if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                             pStreamProvider2.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Over speed.");
                                             Toast.makeText(context, " Over speed! ", Toast.LENGTH_SHORT).show();
-                                            psCallback.setSpeed(speed);
+                                            geolocationCallbackData.setSpeed(speed);
+                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                             setSatisfyCond();
                                         }
                                     } else {
@@ -627,12 +584,13 @@ public class GeolocationEvent extends Event {
 
                                     if (speed < fThreshold) {
                                         counter++;
-                                        if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                             pStreamProvider2.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Under speed.");
                                             Toast.makeText(context, " Under speed! ", Toast.LENGTH_SHORT).show();
-                                            psCallback.setSpeed(speed);
+                                            geolocationCallbackData.setSpeed(speed);
+                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                             setSatisfyCond();
                                         }
                                     } else {
@@ -645,7 +603,7 @@ public class GeolocationEvent extends Event {
                         });
                 break;
 
-            case Event.Geolocation_Arrive_Destination:
+            case EventType.Geolocation_Arrive_Destination:
                 periodicEvent = true;
                 LatLon destination = new LatLon(latitude, longitude);
 
@@ -656,15 +614,16 @@ public class GeolocationEvent extends Event {
                             @Override
                             protected void onInput(Double distance) {
 
-                                if (operator.equals(Under)) {
+                                if (operator.equals(LTE)) {
                                     // the fault tolerance 15 meters
                                     if (distance <= 15) {
                                         counter++;
-                                        if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                             pStreamProvider3.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Distance less than the radius.");
-                                            psCallback.setDistance(distance);
+                                            geolocationCallbackData.setDistance(distance);
+                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                             setSatisfyCond();
                                         }
                                     } else {
@@ -675,11 +634,12 @@ public class GeolocationEvent extends Event {
                                 } else {
                                     if (distance > 15) {
                                         counter++;
-                                        if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                             pStreamProvider3.isCancelled = true;
                                         } else {
                                             Log.d("Log", "Distance over the radius.");
-                                            psCallback.setDistance(distance);
+                                            geolocationCallbackData.setDistance(distance);
+                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                             setSatisfyCond();
                                         }
                                     } else {
@@ -691,7 +651,7 @@ public class GeolocationEvent extends Event {
                         });
                 break;
 
-            case Event.Geolocation_Change_City:
+            case EventType.Geolocation_Change_City:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider4 = Geolocation.asUpdates(interval, Geolocation.LEVEL_CITY);
@@ -706,11 +666,12 @@ public class GeolocationEvent extends Event {
                                     satisfyCond = false;
                                 } else {
                                     counter++;
-                                    if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                    if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                         pStreamProvider4.isCancelled = true;
                                     } else {
                                         Log.d("Log", "City updated.");
-                                        psCallback.setCity(city);
+                                        geolocationCallbackData.setCity(city);
+                                        eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                         setSatisfyCond();
                                     }
                                 }
@@ -720,7 +681,7 @@ public class GeolocationEvent extends Event {
                         });
                 break;
 
-            case Event.Geolocation_Change_Postcode:
+            case EventType.Geolocation_Change_Postcode:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider5 = Geolocation.asUpdates(interval, locationPrecision);
@@ -735,11 +696,12 @@ public class GeolocationEvent extends Event {
                                     satisfyCond = false;
                                 } else {
                                     counter++;
-                                    if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                    if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                         pStreamProvider5.isCancelled = true;
                                     } else {
                                         Log.d("Log", "Postcode updated.");
-                                        psCallback.setPostcode(postcode);
+                                        geolocationCallbackData.setPostcode(postcode);
+                                        eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                         setSatisfyCond();
                                     }
                                 }
@@ -749,7 +711,7 @@ public class GeolocationEvent extends Event {
                         });
                 break;
 
-            case Event.Geolocation_Turning:
+            case EventType.Geolocation_Turning:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider6 = Geolocation.asUpdates(interval, locationPrecision);
@@ -764,11 +726,12 @@ public class GeolocationEvent extends Event {
                                     satisfyCond = false;
                                 } else {
                                     counter++;
-                                    if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                    if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                         pStreamProvider6.isCancelled = true;
                                     } else {
                                         Log.d("Log", "Direction updated");
-                                        psCallback.setDirection(direction);
+                                        geolocationCallbackData.setDirection(direction);
+                                        eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                         setSatisfyCond();
                                     }
                                 }
@@ -778,7 +741,7 @@ public class GeolocationEvent extends Event {
                         });
                 break;
 
-            case Event.Geolocation_Updated:
+            case EventType.Geolocation_Updated:
                 periodicEvent = true;
 
                 final PStreamProvider pStreamProvider7 = Geolocation.asUpdates(interval, Geolocation.LEVEL_EXACT);
@@ -789,11 +752,12 @@ public class GeolocationEvent extends Event {
 
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                     pStreamProvider7.isCancelled = true;
                                 } else {
                                     Log.d("Log", "Location updated");
-                                    psCallback.setLatLon(input);
+                                    geolocationCallbackData.setLatLon(input);
+                                    eventCallback.setGeolocationCallbackData(geolocationCallbackData);
                                     setSatisfyCond();
                                 }
 
@@ -815,6 +779,7 @@ public class GeolocationEvent extends Event {
      * Builder pattern used to construct location related events.
      */
     public static class GeolocationEventBuilder {
+        private String eventDescription;
         private String fieldName;
         private String operator;
         private Double threshold;
@@ -826,6 +791,11 @@ public class GeolocationEvent extends Event {
         private long interval;
         private Integer recurrence;
         List<List> optimizationMatrix = new ArrayList<>();
+
+        public GeolocationEventBuilder setEventDescription(String eventDescription) {
+            this.eventDescription = eventDescription;
+            return this;
+        }
 
         public GeolocationEventBuilder setFieldName(String fieldName) {
             this.fieldName = fieldName;
@@ -872,7 +842,7 @@ public class GeolocationEvent extends Event {
             return this;
         }
 
-        public GeolocationEventBuilder setNotificationResponsiveness(Integer recurrence) {
+        public GeolocationEventBuilder setMaxNumberOfRecurrences(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
@@ -887,7 +857,7 @@ public class GeolocationEvent extends Event {
             return this;
         }
 
-        public Event build() {
+        public EventType build() {
             GeolocationEvent geolocationEvent = new GeolocationEvent();
 
             if (fieldName != null) {
@@ -927,7 +897,7 @@ public class GeolocationEvent extends Event {
             }
 
             if (recurrence != null) {
-                geolocationEvent.setNotificationResponsiveness(recurrence);
+                geolocationEvent.setMaxNumberOfRecurrences(recurrence);
             }
 
             if (optimizationMatrix != null) {
