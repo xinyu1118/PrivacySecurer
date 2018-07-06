@@ -91,7 +91,7 @@ public class GeolocationOperators {
      * @param threshold the speed limitation
      * @return the function
      */
-    public static Function<Item, Boolean> checkSpeed (String speedField, Float threshold) {
+    public static Function<Item, Boolean> checkSpeed(String speedField, Float threshold) {
         return new LocationSpeedPredicate(speedField, threshold);
     }
 
@@ -101,7 +101,7 @@ public class GeolocationOperators {
      * @param bearingField the horizontal direction of travel of this device
      * @return the function
      */
-    public static Function<Item, String> getDirection (String bearingField) {
+    public static Function<Item, String> getDirection(String bearingField) {
         return new LocationDirectionPredicate(bearingField);
     }
 

@@ -67,6 +67,7 @@ public class UQI {
      */
     public void addEventListener(final EventType event, final EventCallback callback) {
         event.handle(context, callback);
+
         // Monitor boolean variable, whose initialization value is false.
         // If the event happens, its value is set to be true, and developers
         // could get notification and also obtain intermediate data.
@@ -75,10 +76,9 @@ public class UQI {
                 @Override
                 public void onSuccess() {
                     //Log.d("Log", "Event satisfies conditions.");
-
                     switch (event.getEventType()) {
                         case EventType.Audio_Check_Average_Loudness:case EventType.Audio_Check_Average_Loudness_Periodically:case EventType.Audio_Has_Human_Voice:
-                        case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:
+                        case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:case EventType.Audio_Customized_Event:
                             callback.onEvent(callback.getAudioCallbackData());
                             break;
                         case EventType.Geolocation_Fence:case EventType.Geolocation_Check_Place:case EventType.Geolocation_Updated:
@@ -105,7 +105,6 @@ public class UQI {
                             callback.onEvent(callback.getImageCallbackData());
                             break;
                     }
-
                 }
                 @Override
                 public void onFail(String msg) {
@@ -113,10 +112,9 @@ public class UQI {
                 }
             });
         } else {
-
             switch (event.getEventType()) {
                 case EventType.Audio_Check_Average_Loudness:case EventType.Audio_Check_Average_Loudness_Periodically:case EventType.Audio_Has_Human_Voice:
-                case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:
+                case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:case EventType.Audio_Customized_Event:
                     callback.onEvent(callback.getAudioCallbackData());
                     break;
                 case EventType.Geolocation_Fence:case EventType.Geolocation_Check_Place:case EventType.Geolocation_Updated:

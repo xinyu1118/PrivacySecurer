@@ -17,6 +17,7 @@ public class MainActivity extends AppCompatActivity {
         Examples examples = new Examples(this);
         //examples.AvgLoudnessMonitorEvent();
         //examples.MaxLoudnessMonitorEvent();
+        examples.UserDefinedEvent();
 
         //examples.geoFenceEvent();
         //examples.placeCheckingEvent();

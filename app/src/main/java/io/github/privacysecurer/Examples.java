@@ -7,6 +7,8 @@ import android.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github.privacysecurer.audio.Audio;
+import io.github.privacysecurer.audio.AudioOperators;
 import io.github.privacysecurer.communication.Call;
 
 import io.github.privacysecurer.core.AudioCallback;
@@ -32,7 +34,6 @@ import io.github.privacysecurer.core.MessageCallback;
 import io.github.privacysecurer.core.MessageCallbackData;
 import io.github.privacysecurer.core.MessageEvent;
 import io.github.privacysecurer.core.UQI;
-import io.github.privacysecurer.core.purposes.Purpose;
 import io.github.privacysecurer.location.Geolocation;
 import io.github.privacysecurer.location.LatLon;
 
@@ -49,7 +50,7 @@ public class Examples {
     public void AvgLoudnessMonitorEvent() {
         // request android.permission.RECORD_AUDIO
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
-                //.setEventDescription("AvgLoudness")
+                .setEventDescription("AvgLoudness")
                 .setFieldName(AudioEvent.AvgLoudness)
                 .setOperator(AudioEvent.GTE)
                 .setThreshold(30.0)
@@ -87,6 +88,24 @@ public class Examples {
                 Log.d("Log", String.valueOf(audioCallbackData.maxLoudness));
             }
         });
+    }
+
+    public void UserDefinedEvent(){
+        EventType audioEvent = new AudioEvent.AudioEventBuilder()
+                                .setFieldName("minLoudness", AudioOperators.customizedFunctions(Audio.AUDIO_DATA))
+                                .setOperator(AudioEvent.LTE)
+                                .setThreshold(30.0)
+                                .setDuration(1000)
+                                //.setInterval(3000)
+                                .build();
+        uqi.addEventListener(audioEvent, new AudioCallback() {
+            @Override
+            public void onEvent(AudioCallbackData audioCallbackData) {
+                Log.d("Log", String.valueOf(audioCallbackData.customizedField));
+                Log.d("Log", audioCallbackData.EVENT_TYPE);
+            }
+        });
+
     }
 
     public void geoFenceEvent() {
@@ -283,7 +302,7 @@ public class Examples {
         EventType callEvent = new ContactEvent.ContactEventBuilder()
                             .setFieldName(ContactEvent.Caller)
                             .setOperator(ContactEvent.IN)
-                            .setLists(blacklist)
+                            .setLists(blacklist) // runtime
                             .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                             .build();
         uqi.addEventListener(callEvent, new ContactCallback() {

@@ -51,6 +51,11 @@ public abstract class EventType {
     public static final String Audio_Has_Human_Voice = "audioHasHumanVoice";
 
     /**
+     * Audio customized event with field value defined by developers.
+     */
+    public static final String Audio_Customized_Event = "audioCustomizedEvent";
+
+    /**
      * Keep monitoring if a user is entering/leaving a specified circle area,
      * which is defined by the center latitude, longitude and radius.
      */

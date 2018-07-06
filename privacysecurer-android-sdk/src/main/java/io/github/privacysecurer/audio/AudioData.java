@@ -1,6 +1,5 @@
 package io.github.privacysecurer.audio;
 
-import android.util.Log;
 
 import io.github.privacysecurer.core.UQI;
 import io.github.privacysecurer.utils.StatisticUtils;
@@ -11,13 +10,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import static java.lang.Boolean.FALSE;
-import static java.lang.Boolean.TRUE;
-
 /**
  * An abstraction of audio data.
  */
-
 public class AudioData {
     private final int type;
     private static final int TYPE_TEMP_RECORD = 0;
@@ -71,7 +66,14 @@ public class AudioData {
         return maxLoudness;
     }
 
-    Boolean checkLoudness (UQI uqi, String operator, Double threshold) {
+    Double customizedFunctions(UQI uqi) {
+        // Developers could write their own functions here, for example, this case is to generate minimum loudness
+        Integer amplitude = StatisticUtils.min(this.getAmplitudeSamples());
+        Double minLoudness = convertAmplitudeToLoudness(uqi, amplitude);
+        return minLoudness;
+    }
+
+    /*Boolean checkLoudness (UQI uqi, String operator, Double threshold) {
         Double loudness = convertAmplitudeToLoudness(uqi, StatisticUtils.rms(this.getAmplitudeSamples()));
         Boolean booleanFlag = null;
         switch (operator) {
@@ -121,34 +123,31 @@ public class AudioData {
                 Log.d("Log", "Operators don't match, please use gt, lt, gte, lte, eq, ne.");
         }
         return booleanFlag;
+    }*/
 
-    }
-
-    Boolean checkMaxLoudness (UQI uqi, Double threshold) {
+    /*Boolean checkMaxLoudness (UQI uqi, Double threshold) {
         Integer amplitude = StatisticUtils.max(this.getAmplitudeSamples());
         Double loudness = convertAmplitudeToLoudness(uqi, amplitude);
         Boolean booleanFlag = null;
-
         if (loudness >= threshold) {
             booleanFlag = TRUE;
         } else {
             booleanFlag = FALSE;
         }
         return booleanFlag;
-    }
+    }*/
 
-    Boolean checkAmplitude (UQI uqi, Double threshold) {
+    /*Boolean checkAmplitude (UQI uqi, Double threshold) {
         Integer amplitude = StatisticUtils.max(this.getAmplitudeSamples());
         Boolean booleanFlag = null;
         int mThreshold = Integer.valueOf(threshold.intValue());
-
         if (amplitude >= mThreshold) {
             booleanFlag = TRUE;
         } else {
             booleanFlag = FALSE;
         }
         return booleanFlag;
-    }
+    }*/
 
     @Override
     protected void finalize() throws Throwable {

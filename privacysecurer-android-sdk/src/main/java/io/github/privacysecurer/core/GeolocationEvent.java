@@ -43,8 +43,12 @@ public class GeolocationEvent extends EventType {
     public static final String OUT = "out";
     public static final String CROSSES = "crosses";
     public static final String UPDATED = "updated";
-    public static final String LTE = "lte";
     public static final String GTE = "gte";
+    public static final String LTE = "lte";
+    public static final String GT = "gt";
+    public static final String LT = "lt";
+    public static final String EQ = "eq";
+    public static final String NEQ = "neq";
 
     /**
      * The boolean flag used to indicate whether the event is triggered or not,
@@ -562,42 +566,110 @@ public class GeolocationEvent extends EventType {
                             @Override
                             protected void onInput(Float speed) {
 
-                                if (operator.equals(GTE)) {
-
-                                    if (speed >= fThreshold) {
-                                        counter++;
-                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                            pStreamProvider2.isCancelled = true;
+                                switch (operator) {
+                                    case GTE:
+                                        if (speed >= fThreshold) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider2.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Speed is greater than or equal to the threshold.");
+                                                Toast.makeText(context, " Over speed! ", Toast.LENGTH_SHORT).show();
+                                                geolocationCallbackData.setSpeed(speed);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
                                         } else {
-                                            Log.d("Log", "Over speed.");
-                                            Toast.makeText(context, " Over speed! ", Toast.LENGTH_SHORT).show();
-                                            geolocationCallbackData.setSpeed(speed);
-                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
-                                            setSatisfyCond();
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
                                         }
-                                    } else {
-                                        Log.d("Log", "Event hasn't happened yet.");
-                                        satisfyCond = false;
-                                    }
+                                        break;
 
-                                } else {
-
-                                    if (speed < fThreshold) {
-                                        counter++;
-                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                            pStreamProvider2.isCancelled = true;
+                                    case LTE:
+                                        if (speed <= fThreshold) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider2.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Speed is lower than or equal to the threshold.");
+                                                Toast.makeText(context, " Under speed! ", Toast.LENGTH_SHORT).show();
+                                                geolocationCallbackData.setSpeed(speed);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
                                         } else {
-                                            Log.d("Log", "Under speed.");
-                                            Toast.makeText(context, " Under speed! ", Toast.LENGTH_SHORT).show();
-                                            geolocationCallbackData.setSpeed(speed);
-                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
-                                            setSatisfyCond();
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
                                         }
-                                    } else {
-                                        Log.d("Log", "Event hasn't happened yet.");
-                                        satisfyCond = false;
-                                    }
+                                        break;
 
+                                    case GT:
+                                        if (speed > fThreshold) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider2.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Speed is greater than the threshold.");
+                                                geolocationCallbackData.setSpeed(speed);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
+                                        } else {
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
+                                        }
+                                        break;
+
+                                    case LT:
+                                        if (speed < fThreshold) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider2.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Speed is lower than the threshold.");
+                                                geolocationCallbackData.setSpeed(speed);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
+                                        } else {
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
+                                        }
+                                        break;
+
+                                    case EQ:
+                                        if (speed.equals(fThreshold)) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider2.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Speed is equal to the threshold.");
+                                                geolocationCallbackData.setSpeed(speed);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
+                                        } else {
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
+                                        }
+                                        break;
+
+                                    case NEQ:
+                                        if (!speed.equals(fThreshold)) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider2.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Speed isn't equal to the threshold.");
+                                                geolocationCallbackData.setSpeed(speed);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
+                                        } else {
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
+                                        }
+                                        break;
                                 }
                             }
                         });
@@ -614,39 +686,111 @@ public class GeolocationEvent extends EventType {
                             @Override
                             protected void onInput(Double distance) {
 
-                                if (operator.equals(LTE)) {
-                                    // the fault tolerance 15 meters
-                                    if (distance <= 15) {
-                                        counter++;
-                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                            pStreamProvider3.isCancelled = true;
+                                switch (operator) {
+                                    case GTE:
+                                        if (distance >= threshold) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider3.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Distance is greater than or equal to the threshold.");
+                                                geolocationCallbackData.setDistance(distance);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
                                         } else {
-                                            Log.d("Log", "Distance less than the radius.");
-                                            geolocationCallbackData.setDistance(distance);
-                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
-                                            setSatisfyCond();
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
                                         }
-                                    } else {
-                                        Log.d("Log", "Event hasn't happened yet.");
-                                        satisfyCond = false;
-                                    }
+                                        break;
 
-                                } else {
-                                    if (distance > 15) {
-                                        counter++;
-                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                            pStreamProvider3.isCancelled = true;
+                                    case LTE:
+                                        if (distance <= threshold) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider3.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Distance is lower than or equal to the threshold.");
+                                                geolocationCallbackData.setDistance(distance);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
                                         } else {
-                                            Log.d("Log", "Distance over the radius.");
-                                            geolocationCallbackData.setDistance(distance);
-                                            eventCallback.setGeolocationCallbackData(geolocationCallbackData);
-                                            setSatisfyCond();
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
                                         }
-                                    } else {
-                                        Log.d("Log", "Event hasn't happened yet.");
-                                        satisfyCond = false;
-                                    }
+                                        break;
+
+                                    case GT:
+                                        if (distance > threshold) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider3.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Distance is greater than the threshold.");
+                                                geolocationCallbackData.setDistance(distance);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
+                                        } else {
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
+                                        }
+                                        break;
+
+                                    case LT:
+                                        if (distance < threshold) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider3.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Distance is lower than the threshold.");
+                                                geolocationCallbackData.setDistance(distance);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
+                                        } else {
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
+                                        }
+                                        break;
+
+                                    case EQ:
+                                        if (distance.equals(threshold)) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider3.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Distance is equal to the threshold.");
+                                                geolocationCallbackData.setDistance(distance);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
+                                        } else {
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
+                                        }
+                                        break;
+
+                                    case NEQ:
+                                        if (!distance.equals(threshold)) {
+                                            counter++;
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                                pStreamProvider3.isCancelled = true;
+                                            } else {
+                                                Log.d("Log", "Distance isn't equal to the threshold.");
+                                                geolocationCallbackData.setDistance(distance);
+                                                eventCallback.setGeolocationCallbackData(geolocationCallbackData);
+                                                setSatisfyCond();
+                                            }
+                                        } else {
+                                            Log.d("Log", "Event hasn't happened yet.");
+                                            satisfyCond = false;
+                                        }
+                                        break;
+
                                 }
+
                             }
                         });
                 break;
