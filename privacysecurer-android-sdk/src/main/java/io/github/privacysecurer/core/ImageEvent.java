@@ -47,7 +47,7 @@ public class ImageEvent extends EventType {
     /**
      * The operator on the field value.
      */
-    private String operator;
+    private String comparator;
     /**
      * File or file folder path.
      */
@@ -88,13 +88,13 @@ public class ImageEvent extends EventType {
     }
 
     @Override
-    public void setOperator(String operator) {
-        this.operator = operator;
+    public void setComparator(String comparator) {
+        this.comparator = comparator;
     }
 
     @Override
-    public String getOperator() {
-        return this.operator;
+    public String getComparator() {
+        return this.comparator;
     }
 
     @Override
@@ -352,7 +352,7 @@ public class ImageEvent extends EventType {
     public static class ImageEventBuilder {
         private String eventDescription;
         private String fieldName;
-        private String operator;
+        private String comparator;
         private String path;
         private Integer recurrence;
 
@@ -366,8 +366,8 @@ public class ImageEvent extends EventType {
             return this;
         }
 
-        public ImageEventBuilder setOperator(String operator) {
-            this.operator = operator;
+        public ImageEventBuilder setComparator(String comparator) {
+            this.comparator = comparator;
             return this;
         }
 
@@ -388,8 +388,8 @@ public class ImageEvent extends EventType {
                 imageEvent.setFieldName(fieldName);
             }
 
-            if (operator != null) {
-                imageEvent.setOperator(operator);
+            if (comparator != null) {
+                imageEvent.setComparator(comparator);
             }
 
             if (path != null) {

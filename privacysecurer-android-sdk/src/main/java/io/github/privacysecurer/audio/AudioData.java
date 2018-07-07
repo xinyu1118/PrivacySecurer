@@ -66,6 +66,11 @@ public class AudioData {
         return maxLoudness;
     }
 
+    /**
+     * Developers could implement their own calculation equation here.
+     * @param uqi
+     * @return generated field
+     */
     Double customizedFunctions(UQI uqi) {
         // Developers could write their own functions here, for example, this case is to generate minimum loudness
         Integer amplitude = StatisticUtils.min(this.getAmplitudeSamples());

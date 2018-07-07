@@ -45,7 +45,7 @@ public class MessageEvent extends EventType {
     /**
      * The operator on the field value.
      */
-    private String operator;
+    private String comparator;
     /**
      * The sender name or phone number.
      */
@@ -88,13 +88,13 @@ public class MessageEvent extends EventType {
     }
 
     @Override
-    public void setOperator(String operator) {
-        this.operator = operator;
+    public void setComparator(String comparator) {
+        this.comparator = comparator;
     }
 
     @Override
-    public String getOperator() {
-        return this.operator;
+    public String getComparator() {
+        return this.comparator;
     }
 
     @Override
@@ -289,9 +289,9 @@ public class MessageEvent extends EventType {
                 this.setEventType(EventType.Message_Coming_In);
                 break;
             case Sender:
-                if (operator == EQ)
+                if (comparator == EQ)
                     this.setEventType(EventType.Message_Check_Unwanted);
-                if (operator == IN)
+                if (comparator == IN)
                     this.setEventType(EventType.Message_In_List);
                 break;
             case MessageLists:
@@ -431,7 +431,7 @@ public class MessageEvent extends EventType {
     public static class MessageEventBuilder {
         private String eventDescription;
         private String fieldName;
-        private String operator;
+        private String comparator;
         private String caller;
         private List<String> lists;
         private Integer recurrence;
@@ -446,8 +446,8 @@ public class MessageEvent extends EventType {
             return this;
         }
 
-        public MessageEventBuilder setOperator(String operator) {
-            this.operator = operator;
+        public MessageEventBuilder setComparator(String comparator) {
+            this.comparator = comparator;
             return this;
         }
 
@@ -473,8 +473,8 @@ public class MessageEvent extends EventType {
                 messageEvent.setFieldName(fieldName);
             }
 
-            if (operator != null) {
-                messageEvent.setOperator(operator);
+            if (comparator != null) {
+                messageEvent.setComparator(comparator);
             }
 
             if (caller != null) {

@@ -52,7 +52,7 @@ public class Examples {
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
                 .setEventDescription("AvgLoudness")
                 .setFieldName(AudioEvent.AvgLoudness)
-                .setOperator(AudioEvent.GTE)
+                .setComparator(AudioEvent.GTE)
                 .setThreshold(30.0)
                 .setDuration(1000)
                 .setInterval(3000)
@@ -76,7 +76,7 @@ public class Examples {
         // request android.permission.RECORD_AUDIO
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
                                 .setFieldName(AudioEvent.MaxLoudness)
-                                .setOperator(AudioEvent.GTE)
+                                .setComparator(AudioEvent.GTE)
                                 .setThreshold(50.0)
                                 .setDuration(1000)
                                 .setInterval(3000)
@@ -93,10 +93,10 @@ public class Examples {
     public void UserDefinedEvent(){
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
                                 .setFieldName("minLoudness", AudioOperators.customizedFunctions(Audio.AUDIO_DATA))
-                                .setOperator(AudioEvent.LTE)
+                                .setComparator(AudioEvent.LTE)
                                 .setThreshold(30.0)
                                 .setDuration(1000)
-                                //.setInterval(3000)
+                                .setInterval(3000)
                                 .build();
         uqi.addEventListener(audioEvent, new AudioCallback() {
             @Override
@@ -116,7 +116,7 @@ public class Examples {
         // request android.permission.ACCESS_FINE_LOCATION or android.permission.ACCESS_COARSE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setFieldName(GeolocationEvent.LatLon)
-                                .setOperator(GeolocationEvent.CROSSES)
+                                .setComparator(GeolocationEvent.CROSSES)
                                 .setLatitude(40.443285)
                                 .setLongitude(-79.945502)
                                 .setRadius(20.0)
@@ -138,7 +138,7 @@ public class Examples {
     public void placeCheckingEvent() {
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setFieldName(GeolocationEvent.LatLon)
-                                .setOperator(GeolocationEvent.IN)
+                                .setComparator(GeolocationEvent.IN)
                                 .setPlaceName("Newell Simon Hall")
                                 .setInterval(3000)
                                 .setMaxNumberOfRecurrences(3)
@@ -154,7 +154,7 @@ public class Examples {
     public void locationUpdatesEvent() {
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                 .setFieldName(GeolocationEvent.LatLon)
-                .setOperator(GeolocationEvent.UPDATED)
+                .setComparator(GeolocationEvent.UPDATED)
                 .setInterval(3000)
                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                 .addOptimizationConstraints(100, 50, 100000, Geolocation.LEVEL_NEIGHBORHOOD)
@@ -174,7 +174,7 @@ public class Examples {
         // request android.permission.ACCESS_FINE_LOCATION required or android.permission.ACCESS_COARSE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                 .setFieldName(GeolocationEvent.Speed)
-                .setOperator(GeolocationEvent.GTE)
+                .setComparator(GeolocationEvent.GTE)
                 .setThreshold(0.1)
                 .setInterval(3000)
                 .setLocationPrecision(Geolocation.LEVEL_EXACT)
@@ -192,7 +192,7 @@ public class Examples {
         // request android.permission.ACCESS_COARSE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setFieldName(GeolocationEvent.City)
-                                .setOperator(GeolocationEvent.UPDATED)
+                                .setComparator(GeolocationEvent.UPDATED)
                                 .setInterval(3000)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
@@ -208,7 +208,7 @@ public class Examples {
         // request android.permission.ACCESS_COARSE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setFieldName(GeolocationEvent.Postcode)
-                                .setOperator(GeolocationEvent.UPDATED)
+                                .setComparator(GeolocationEvent.UPDATED)
                                 .setInterval(3000)
                                 .setLocationPrecision(Geolocation.LEVEL_BUILDING)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
@@ -225,7 +225,7 @@ public class Examples {
         // request android.permission.ACCESS_FINE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setFieldName(GeolocationEvent.Distance)
-                                .setOperator(GeolocationEvent.LTE)
+                                .setComparator(GeolocationEvent.LTE)
                                 .setLatitude(40.443277)
                                 .setLongitude(-79.945534)
                                 .setInterval(3000)
@@ -244,7 +244,7 @@ public class Examples {
         // request android.permission.ACCESS_FINE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setFieldName(GeolocationEvent.Direction)
-                                .setOperator(GeolocationEvent.UPDATED)
+                                .setComparator(GeolocationEvent.UPDATED)
                                 .setInterval(3000)
                                 .setLocationPrecision(Geolocation.LEVEL_EXACT)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
@@ -261,7 +261,7 @@ public class Examples {
         // request android.permission.READ_PHONE_STATE, android.permission.PROCESS_OUTGOING_CALLS
         EventType callEvent = new ContactEvent.ContactEventBuilder()
                 .setFieldName(ContactEvent.Caller)
-                .setOperator(ContactEvent.EQ)
+                .setComparator(ContactEvent.EQ)
                 .setCaller("8618515610518")
                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                 //.setCaller("15555215556")
@@ -278,7 +278,7 @@ public class Examples {
         // request android.permission.READ_CALL_LOG
         EventType callEvent = new ContactEvent.ContactEventBuilder()
                             .setFieldName(ContactEvent.Logs)
-                            .setOperator(ContactEvent.EQ)
+                            .setComparator(ContactEvent.EQ)
                             .setCaller("8618515610518")
                             .setMaxNumberOfRecurrences(1)
                             .build();
@@ -301,7 +301,7 @@ public class Examples {
         blacklist.add("14122909962");
         EventType callEvent = new ContactEvent.ContactEventBuilder()
                             .setFieldName(ContactEvent.Caller)
-                            .setOperator(ContactEvent.IN)
+                            .setComparator(ContactEvent.IN)
                             .setLists(blacklist) // runtime
                             .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                             .build();
@@ -331,7 +331,7 @@ public class Examples {
         // request android.permission.READ_PHONE_STATE, android.permission.PROCESS_OUTGOING_CALLS
         EventType callEvent = new ContactEvent.ContactEventBuilder()
                             .setFieldName(ContactEvent.Calls)
-                            .setOperator(ContactEvent.UPDATED)
+                            .setComparator(ContactEvent.UPDATED)
                             .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                             .build();
         uqi.addEventListener(callEvent, new ContactCallback() {
@@ -346,7 +346,7 @@ public class Examples {
         // request android.permission.READ_CONTACTS
         EventType contactEvent = new ContactEvent.ContactEventBuilder()
                                 .setFieldName(ContactEvent.Contacts)
-                                .setOperator(ContactEvent.UPDATED)
+                                .setComparator(ContactEvent.UPDATED)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(contactEvent, new ContactCallback() {
@@ -364,7 +364,7 @@ public class Examples {
         emailLists.add("test@gmail.com");
         EventType contactEvent = new ContactEvent.ContactEventBuilder()
                                 .setFieldName(ContactEvent.Emails)
-                                .setOperator(ContactEvent.IN)
+                                .setComparator(ContactEvent.IN)
                                 .setLists(emailLists)
                                 .setMaxNumberOfRecurrences(1)
                                 .build();
@@ -385,7 +385,7 @@ public class Examples {
         // request android.permission.RECEIVE_SMS
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
                                 .setFieldName(MessageEvent.Sender)
-                                .setOperator(MessageEvent.EQ)
+                                .setComparator(MessageEvent.EQ)
                                 .setCaller("8618515610518")
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 //.setCaller("15555215556")
@@ -402,7 +402,7 @@ public class Examples {
         // request android.permission.READ_SMS
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
                                 .setFieldName(MessageEvent.MessageLists)
-                                .setOperator(MessageEvent.UPDATED)
+                                .setComparator(MessageEvent.UPDATED)
                                 .setMaxNumberOfRecurrences(1)
                                 .build();
         uqi.addEventListener(messageEvent, new MessageCallback() {
@@ -420,7 +420,7 @@ public class Examples {
         blacklist.add("15555215556");
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
                                 .setFieldName(MessageEvent.Sender)
-                                .setOperator(MessageEvent.IN)
+                                .setComparator(MessageEvent.IN)
                                 .setLists(blacklist)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
@@ -449,7 +449,7 @@ public class Examples {
         // request android.permission.RECEIVE_SMS
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
                                 .setFieldName(MessageEvent.Messages)
-                                .setOperator(MessageEvent.UPDATED)
+                                .setComparator(MessageEvent.UPDATED)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(messageEvent, new MessageCallback() {
@@ -464,7 +464,7 @@ public class Examples {
         // request android.permission.READ_EXTERNAL_STORAGE
         EventType imageEvent = new ImageEvent.ImageEventBuilder()
                             .setFieldName(ImageEvent.MediaLibrary)
-                            .setOperator(ImageEvent.UPDATED)
+                            .setComparator(ImageEvent.UPDATED)
                             .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                             .build();
         uqi.addEventListener(imageEvent, new ImageCallback() {
@@ -495,7 +495,7 @@ public class Examples {
         // request android.permission.READ_EXTERNAL_STORAGE
         EventType imageEvent = new ImageEvent.ImageEventBuilder()
                             .setFieldName(ImageEvent.FileOrFolder)
-                            .setOperator(ImageEvent.UPDATED)
+                            .setComparator(ImageEvent.UPDATED)
                             .setPath("/storage/emulated/0/DCIM/Camera/")
                             .setMaxNumberOfRecurrences(3)
                             .build();
@@ -510,7 +510,7 @@ public class Examples {
     public void eventCollections() {
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
                 .setFieldName(AudioEvent.AvgLoudness)
-                .setOperator(AudioEvent.GTE)
+                .setComparator(AudioEvent.GTE)
                 .setThreshold(10.0)
                 .setDuration(1000)
                 .setInterval(3000)
@@ -519,7 +519,7 @@ public class Examples {
 
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setFieldName(GeolocationEvent.LatLon)
-                                .setOperator(GeolocationEvent.UPDATED)
+                                .setComparator(GeolocationEvent.UPDATED)
                                 .setInterval(8000)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();

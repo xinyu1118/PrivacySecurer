@@ -196,9 +196,9 @@ public abstract class EventType {
 
     public abstract String getFieldName();
 
-    public abstract void setOperator(String operator);
+    public abstract void setComparator(String comparator);
 
-    public abstract String getOperator();
+    public abstract String getComparator();
 
     public abstract void setDuration(long duration);
 

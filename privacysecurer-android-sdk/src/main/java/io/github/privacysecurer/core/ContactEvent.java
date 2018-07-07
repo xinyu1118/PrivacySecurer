@@ -50,7 +50,7 @@ public class ContactEvent extends EventType {
     /**
      * The operator on the field value.
      */
-    private String operator;
+    private String comparator;
     /**
      * A list of emails provided by developers.
      */
@@ -96,13 +96,13 @@ public class ContactEvent extends EventType {
     }
 
     @Override
-    public void setOperator(String operator) {
-        this.operator = operator;
+    public void setComparator(String comparator) {
+        this.comparator = comparator;
     }
 
     @Override
-    public String getOperator() {
-        return this.operator;
+    public String getComparator() {
+        return this.comparator;
     }
 
     @Override
@@ -296,9 +296,9 @@ public class ContactEvent extends EventType {
                 this.setEventType(EventType.Call_Coming_In);
                 break;
             case Caller:
-                if (operator == EQ)
+                if (comparator == EQ)
                     this.setEventType(EventType.Call_Check_Unwanted);
-                if (operator == IN)
+                if (comparator == IN)
                     this.setEventType(EventType.Call_In_List);
                 break;
             case Emails:
@@ -512,7 +512,7 @@ public class ContactEvent extends EventType {
     public static class ContactEventBuilder {
         private String eventDescription;
         private String fieldName;
-        private String operator;
+        private String comparator;
         private List<String> lists;
         private String caller;
         private Integer recurrence;
@@ -527,8 +527,8 @@ public class ContactEvent extends EventType {
             return this;
         }
 
-        public ContactEventBuilder setOperator(String operator) {
-            this.operator = operator;
+        public ContactEventBuilder setComparator(String comparator) {
+            this.comparator = comparator;
             return this;
         }
 
@@ -553,8 +553,8 @@ public class ContactEvent extends EventType {
                 contactEvent.setFieldName(fieldName);
             }
 
-            if (operator != null) {
-                contactEvent.setOperator(operator);
+            if (comparator != null) {
+                contactEvent.setComparator(comparator);
             }
 
             if (lists != null) {

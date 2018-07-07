@@ -66,12 +66,12 @@ public class EventCollection extends EventType {
 
 
     @Override
-    public void setOperator(String operator) {
+    public void setComparator(String comparator) {
 
     }
 
     @Override
-    public String getOperator() {
+    public String getComparator() {
         return null;
     }
 

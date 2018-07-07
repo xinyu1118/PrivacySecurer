@@ -68,7 +68,7 @@ public class GeolocationEvent extends EventType {
     /**
      * The operators on the field value.
      */
-    private String operator;
+    private String comparator;
     /**
      * The speed threshold in m/s.
      */
@@ -148,13 +148,13 @@ public class GeolocationEvent extends EventType {
     }
 
     @Override
-    public void setOperator(String operator) {
-        this.operator = operator;
+    public void setComparator(String comparator) {
+        this.comparator = comparator;
     }
 
     @Override
-    public String getOperator() {
-        return this.operator;
+    public String getComparator() {
+        return this.comparator;
     }
 
     @Override
@@ -384,7 +384,7 @@ public class GeolocationEvent extends EventType {
                 if (placeName != null) {
                     this.setEventType(EventType.Geolocation_Check_Place);
                 } else {
-                    if (operator.equals(UPDATED))
+                    if (comparator.equals(UPDATED))
                         this.setEventType(EventType.Geolocation_Updated);
                     else
                         this.setEventType(EventType.Geolocation_Fence);
@@ -421,7 +421,7 @@ public class GeolocationEvent extends EventType {
                             @Override
                             protected void onInput(Boolean geoFence) {
 
-                                switch (operator) {
+                                switch (comparator) {
                                     case IN:
                                         if (geoFence) {
                                             counter++;
@@ -517,7 +517,7 @@ public class GeolocationEvent extends EventType {
                         .forEach("distance", new Callback<Double>() {
                             @Override
                             protected void onInput(Double distance) {
-                                if (operator.equals(IN)) {
+                                if (comparator.equals(IN)) {
 
                                     if (distance <= radius) {
                                         counter++;
@@ -566,7 +566,7 @@ public class GeolocationEvent extends EventType {
                             @Override
                             protected void onInput(Float speed) {
 
-                                switch (operator) {
+                                switch (comparator) {
                                     case GTE:
                                         if (speed >= fThreshold) {
                                             counter++;
@@ -686,7 +686,7 @@ public class GeolocationEvent extends EventType {
                             @Override
                             protected void onInput(Double distance) {
 
-                                switch (operator) {
+                                switch (comparator) {
                                     case GTE:
                                         if (distance >= threshold) {
                                             counter++;
@@ -925,7 +925,7 @@ public class GeolocationEvent extends EventType {
     public static class GeolocationEventBuilder {
         private String eventDescription;
         private String fieldName;
-        private String operator;
+        private String comparator;
         private Double threshold;
         private Double latitude;
         private Double longitude;
@@ -946,8 +946,8 @@ public class GeolocationEvent extends EventType {
             return this;
         }
 
-        public GeolocationEventBuilder setOperator(String operator) {
-            this.operator = operator;
+        public GeolocationEventBuilder setComparator(String comparator) {
+            this.comparator = comparator;
             return this;
         }
 
@@ -1008,8 +1008,8 @@ public class GeolocationEvent extends EventType {
                 geolocationEvent.setFieldName(fieldName);
             }
 
-            if (operator != null) {
-                geolocationEvent.setOperator(operator);
+            if (comparator != null) {
+                geolocationEvent.setComparator(comparator);
             }
 
             if (threshold != null) {

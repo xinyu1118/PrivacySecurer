@@ -55,7 +55,7 @@ public class AudioEvent extends EventType {
     /**
      * The operator on the field value.
      */
-    private String operator;
+    private String comparator;
     /**
      * The threshold to be compared with.
      */
@@ -128,13 +128,13 @@ public class AudioEvent extends EventType {
     }
 
     @Override
-    public void setOperator(String operator) {
-        this.operator = operator;
+    public void setComparator(String comparator) {
+        this.comparator = comparator;
     }
 
     @Override
-    public String getOperator() {
-        return this.operator;
+    public String getComparator() {
+        return this.comparator;
     }
 
     @Override
@@ -353,7 +353,7 @@ public class AudioEvent extends EventType {
                     e.printStackTrace();
                 }
 
-                switch (operator) {
+                switch (comparator) {
                     case GTE:
                         if (avgLoudness >= threshold) {
                             Log.d("Log", "Average loudness is greater than or equal to the threshold.");
@@ -455,7 +455,7 @@ public class AudioEvent extends EventType {
                         .forEach("avgLoudness", new Callback<Double>() {
                             @Override
                             protected void onInput(Double avgLoudness) {
-                                switch (operator) {
+                                switch (comparator) {
                                     case GTE:
                                         if (avgLoudness >= threshold) {
                                             counter ++;
@@ -583,7 +583,7 @@ public class AudioEvent extends EventType {
                     e.printStackTrace();
                 }
 
-                switch (operator) {
+                switch (comparator) {
                     case GTE:
                         if (maxLoudness >= threshold) {
                             Log.d("Log", "Maximum loudness is greater than or equal to the threshold.");
@@ -684,7 +684,7 @@ public class AudioEvent extends EventType {
                         .forEach("maxLoudness", new Callback<Double>() {
                             @Override
                             protected void onInput(Double maxLoudness) {
-                                switch (operator) {
+                                switch (comparator) {
                                     case GTE:
                                         if (maxLoudness >= threshold) {
                                             counter ++;
@@ -816,7 +816,7 @@ public class AudioEvent extends EventType {
                         e.printStackTrace();
                     }
 
-                    switch (operator) {
+                    switch (comparator) {
                         case GTE:
                             if (customizedField >= threshold) {
                                 Log.d("Log", fieldName+" is greater than or equal to the threshold.");
@@ -918,7 +918,7 @@ public class AudioEvent extends EventType {
                             .forEach(fieldName, new Callback<Double>() {
                                 @Override
                                 protected void onInput(Double customizedField) {
-                                    switch (operator) {
+                                    switch (comparator) {
                                         case GTE:
                                             if (customizedField >= threshold) {
                                                 counter ++;
@@ -1047,7 +1047,7 @@ public class AudioEvent extends EventType {
         private String eventDescription;
         private String fieldName;
         private Boolean customizedEventFlag;
-        private String operator;
+        private String comparator;
         private Double threshold;
         private long duration;
         private long interval;
@@ -1070,8 +1070,8 @@ public class AudioEvent extends EventType {
             return this;
         }
 
-        public AudioEventBuilder setOperator(String operator) {
-            this.operator = operator;
+        public AudioEventBuilder setComparator(String comparator) {
+            this.comparator = comparator;
             return this;
         }
 
@@ -1115,8 +1115,8 @@ public class AudioEvent extends EventType {
                 audioEvent.setCustomizedEventFlag();
             }
 
-            if (operator != null) {
-                audioEvent.setOperator(operator);
+            if (comparator != null) {
+                audioEvent.setComparator(comparator);
             }
 
             if (threshold != null) {
