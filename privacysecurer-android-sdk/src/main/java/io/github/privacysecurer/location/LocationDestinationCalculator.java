@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import io.github.privacysecurer.commons.ItemOperator;
 import io.github.privacysecurer.core.Item;
 import io.github.privacysecurer.core.UQI;
@@ -7,7 +8,7 @@ import io.github.privacysecurer.utils.Assertions;
 import io.github.privacysecurer.utils.LocationUtils;
 
 /**
- * Calculate the distance between current coordinate and destination
+ * Calculate the distance between current location and the destination in meters.
  */
 public class LocationDestinationCalculator extends ItemOperator<Double> {
     private final String latLonField;

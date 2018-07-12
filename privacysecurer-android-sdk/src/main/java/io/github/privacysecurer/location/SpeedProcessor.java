@@ -1,12 +1,14 @@
 package io.github.privacysecurer.location;
 
+
 import io.github.privacysecurer.commons.ItemOperator;
 import io.github.privacysecurer.core.Item;
 import io.github.privacysecurer.core.UQI;
 import io.github.privacysecurer.utils.Assertions;
 
 /**
- * Process the speed field in an item.
+ * Process the location speed field in an item.
+ * @param <Tout> the speed type
  */
 abstract class SpeedProcessor<Tout> extends ItemOperator<Tout> {
     private final String speedField;
@@ -23,5 +25,4 @@ abstract class SpeedProcessor<Tout> extends ItemOperator<Tout> {
     }
 
     protected abstract Tout processSpeed(Float speed);
-
 }

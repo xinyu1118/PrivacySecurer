@@ -1,5 +1,6 @@
 package io.github.privacysecurer.communication;
 
+
 import android.os.Handler;
 import android.os.Looper;
 
@@ -9,7 +10,6 @@ import com.google.api.services.gmail.Gmail;
 
 import java.util.Timer;
 import java.util.TimerTask;
-
 
 /**
  * This is the provider which constantly fetches the gmail updates.

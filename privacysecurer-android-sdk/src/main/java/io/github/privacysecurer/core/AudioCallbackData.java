@@ -13,10 +13,9 @@ public class AudioCallbackData extends CallbackData {
      * Intermediate data to be called back, maximum loudness in dB.
      */
     public Double maxLoudness;
-    /**
-     * Intermediate data to be called back, user defined field value.
-     */
-    public Double customizedField;
+
+    public Double fieldValue;
+
 
     public AudioCallbackData() {
         this.TIME_CREATED = System.currentTimeMillis();
@@ -30,8 +29,8 @@ public class AudioCallbackData extends CallbackData {
         this.maxLoudness = maxLoudness;
     }
 
-    public void setCustomizedField(Double customizedField) {
-        this.customizedField = customizedField;
+    public void setFieldValue(Double fieldValue) {
+        this.fieldValue = fieldValue;
     }
 
     public void setEventType(String eventType) {

@@ -1,11 +1,11 @@
 package io.github.privacysecurer.location;
 
+
 import java.util.Locale;
 
 /**
  * Location latitude and longitude.
  */
-
 public class LatLon {
     private double latitude;
     private double longitude;

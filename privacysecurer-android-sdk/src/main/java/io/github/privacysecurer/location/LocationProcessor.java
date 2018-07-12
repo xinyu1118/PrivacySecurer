@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import io.github.privacysecurer.commons.ItemOperator;
 import io.github.privacysecurer.core.Item;
 import io.github.privacysecurer.core.UQI;
@@ -7,9 +8,9 @@ import io.github.privacysecurer.utils.Assertions;
 
 /**
  * Process the location field in an item.
+ * @param <Tout> the latlon type
  */
 abstract class LocationProcessor<Tout> extends ItemOperator<Tout> {
-
     private final String latLonField;
 
     LocationProcessor(String latLonField) {

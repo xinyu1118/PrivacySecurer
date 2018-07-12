@@ -1,11 +1,11 @@
 package io.github.privacysecurer.location;
 
+
 import io.github.privacysecurer.utils.LocationUtils;
 
 /**
  * Check whether a location is in a circular region.
  */
-
 class LocationInCirclePredicate extends LocationProcessor<Boolean> {
     private final double centerLat;
     private final double centerLng;

@@ -1,12 +1,12 @@
 package io.github.privacysecurer.communication;
 
+
 import io.github.privacysecurer.core.Item;
 import io.github.privacysecurer.core.PStreamProvider;
 import io.github.privacysecurer.utils.annotations.PSItem;
 import io.github.privacysecurer.utils.annotations.PSItemField;
 
 import java.util.List;
-
 
 /**
  * The information of a contact.

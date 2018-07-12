@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 /**
  * A predicate that checks whether a location is at home.
  */

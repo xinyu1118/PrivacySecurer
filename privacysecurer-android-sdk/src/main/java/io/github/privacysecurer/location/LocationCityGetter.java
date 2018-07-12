@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import android.content.Context;
 import android.location.Address;
 import android.location.Geocoder;
@@ -9,17 +10,16 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Get the postcode based on coordinates.
+ * Get the local city according to current coordinate.
  */
+class LocationCityGetter extends CityProcessor<String> {
 
-class LocationPostcodeOperator extends PostcodeProcessor<String>{
-
-    LocationPostcodeOperator(String latLonField) {
+    LocationCityGetter(String latLonField) {
         super(latLonField);
     }
 
     @Override
-    protected String processPostcode(Context context, LatLon latLon) {
+    protected String processCity(Context context, LatLon latLon) {
         double latitude = latLon.getLatitude();
         double longitude = latLon.getLongitude();
 
@@ -32,8 +32,8 @@ class LocationPostcodeOperator extends PostcodeProcessor<String>{
             e.printStackTrace();
         }
         // Here 1 represents max location result to be returned, by documents it recommended 1 to 5
-
-        return addresses.get(0).getPostalCode();
+        return addresses.get(0).getLocality();
     }
 
 }
+

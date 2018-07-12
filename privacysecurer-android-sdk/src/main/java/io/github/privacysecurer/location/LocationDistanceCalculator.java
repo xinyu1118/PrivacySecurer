@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import io.github.privacysecurer.commons.ItemOperator;
 import io.github.privacysecurer.core.Item;
 import io.github.privacysecurer.core.UQI;
@@ -7,7 +8,7 @@ import io.github.privacysecurer.utils.Assertions;
 import io.github.privacysecurer.utils.LocationUtils;
 
 /**
- * Compute the distance between two locations, in meters.
+ * Compute the distance between two location fields, in meters.
  */
 class LocationDistanceCalculator extends ItemOperator<Double> {
 

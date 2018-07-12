@@ -1,9 +1,9 @@
 package io.github.privacysecurer.location;
 
-/**
- * A function that computes the geo tag based on coordinates
- */
 
+/**
+ * A function that computes the geo tag based on coordinates.
+ */
 class LocationGeoTagger extends LocationProcessor<String> {
 
     LocationGeoTagger(String latLonField) {

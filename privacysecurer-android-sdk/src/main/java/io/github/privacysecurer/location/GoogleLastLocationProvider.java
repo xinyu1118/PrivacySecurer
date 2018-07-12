@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import android.Manifest;
 import android.location.Location;
 import android.os.Bundle;
@@ -12,7 +13,6 @@ import io.github.privacysecurer.utils.Logging;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationServices;
-
 
 /**
  * Provide a last known location with Google API.

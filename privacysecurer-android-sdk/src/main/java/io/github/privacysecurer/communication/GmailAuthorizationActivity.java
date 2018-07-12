@@ -1,5 +1,6 @@
 package io.github.privacysecurer.communication;
 
+
 import android.accounts.AccountManager;
 import android.app.Activity;
 import android.content.Context;
@@ -22,11 +23,9 @@ import java.util.Arrays;
 import static io.github.privacysecurer.communication.BaseGmailProvider.PREF_ACCOUNT_NAME;
 import static io.github.privacysecurer.communication.BaseGmailProvider.SCOPES;
 
-
 /**
  * This is the related activity for Gmail providers, used for authorization and permission granting.
  */
-
 public class GmailAuthorizationActivity extends Activity {
     static final int REQUEST_ACCOUNT_PICKER = 1000;
     static final int REQUEST_AUTHORIZATION = 1001;

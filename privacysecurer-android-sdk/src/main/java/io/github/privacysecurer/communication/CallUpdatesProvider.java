@@ -1,14 +1,13 @@
 package io.github.privacysecurer.communication;
 
+
 import android.Manifest;
 import android.content.Context;
 import android.content.IntentFilter;
-import android.util.Log;
 
 import io.github.privacysecurer.core.UQI;
 import io.github.privacysecurer.core.PStreamProvider;
 
-import java.util.Arrays;
 import java.util.Date;
 
 import static io.github.privacysecurer.utils.CommunicationUtils.normalizePhoneNumber;

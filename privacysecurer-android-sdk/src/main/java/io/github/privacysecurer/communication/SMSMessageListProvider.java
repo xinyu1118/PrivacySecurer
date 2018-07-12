@@ -1,5 +1,6 @@
 package io.github.privacysecurer.communication;
 
+
 import android.Manifest;
 import android.content.ContentResolver;
 import android.database.Cursor;
@@ -9,9 +10,8 @@ import io.github.privacysecurer.core.PStreamProvider;
 import io.github.privacysecurer.utils.CommunicationUtils;
 
 /**
- * Provide a stream of existing SMS messages
+ * Provide a stream of existing SMS messages.
  */
-
 class SMSMessageListProvider extends PStreamProvider {
 
     public SMSMessageListProvider() {

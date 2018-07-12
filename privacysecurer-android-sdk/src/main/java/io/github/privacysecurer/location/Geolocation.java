@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import android.location.Location;
 
 import io.github.privacysecurer.core.Item;

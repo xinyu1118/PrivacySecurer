@@ -17,43 +17,46 @@ public abstract class EventType {
 
     public static final String DefaultPrecision = "defaultPrecision";
 
+    public static final String Audio_Periodic_Event = "audioPeriodicEvent";
+    public static final String Audio_Oneoff_Event = "audioOneoffEvent";
+
     /**
      * Check high loudness recorded from microphone once,
      * the loudness is the average value of recorded audio data in dB.
      */
-    public static final String Audio_Check_Average_Loudness = "audioCheckAvgLoudness";
+//    public static final String Audio_Check_Average_Loudness = "audioCheckAvgLoudness";
 
     /**
      * Check high loudness recorded from microphone periodically,
      * the loudness is the average value of recorded audio data in dB.
      */
-    public static final String Audio_Check_Average_Loudness_Periodically = "audioCheckAvgLoudnessPeriodically";
+//    public static final String Audio_Check_Average_Loudness_Periodically = "audioCheckAvgLoudnessPeriodically";
 
     /**
      * Obtain the maximum loudness (dB) in a recorded audio datum once,
      * and check if it's over the specific threshold.
      */
-    public static final String Audio_Check_Maximum_Loudness = "audioCheckMaxLoudness";
+//    public static final String Audio_Check_Maximum_Loudness = "audioCheckMaxLoudness";
 
     /**
      * Obtain a series of maximum loudness (dB) recorded from microphone periodically,
      * and check if each of them is over the specific threshold.
      */
-    public static final String Audio_Check_Maximum_Loudness_Periodically = "audioCheckMaxLoudnessPeriodically";
+//    public static final String Audio_Check_Maximum_Loudness_Periodically = "audioCheckMaxLoudnessPeriodically";
 
     // Not necessary, with the same meaning as "check audio loudness" event
-    //public static final String Audio_Check_Amplitude = "audioCheckAmplitude";
-    //public static final String Audio_Check_Amplitude_Periodically = "audioCheckAmplitudePeriodically";
+//    public static final String Audio_Check_Amplitude = "audioCheckAmplitude";
+//    public static final String Audio_Check_Amplitude_Periodically = "audioCheckAmplitudePeriodically";
 
     /**
      * Check whether the user is talking or not from microphone.
      */
-    public static final String Audio_Has_Human_Voice = "audioHasHumanVoice";
+//    public static final String Audio_Has_Human_Voice = "audioHasHumanVoice";
 
     /**
      * Audio customized event with field value defined by developers.
      */
-    public static final String Audio_Customized_Event = "audioCustomizedEvent";
+//    public static final String Audio_Customized_Event = "audioCustomizedEvent";
 
     /**
      * Keep monitoring if a user is entering/leaving a specified circle area,
@@ -68,14 +71,14 @@ public abstract class EventType {
     public static final String Geolocation_Check_Place = "geoLocationCheckPlace";
 
     /**
+     * Monitor the latitude and longitude updates, different location precision provided.
+     */
+    public static final String Geolocation_Updated = "geolocationUpdated";
+
+    /**
      * Keep monitoring over speed event, speed is measured in m/s.
      */
     public static final String Geolocation_Check_Speed = "geoLocationCheckSpeed";
-
-    /**
-     * Keep monitoring local postcode changes.
-     */
-    public static final String Geolocation_Change_Postcode = "geoLocationChangePostcode";
 
     /**
      * Keep monitoring local city changes.
@@ -83,10 +86,9 @@ public abstract class EventType {
     public static final String Geolocation_Change_City = "geoLocationChangeCity";
 
     /**
-     * Keep monitoring if a user has arrived a destination,
-     * which is defined by latitude and longitude.
+     * Keep monitoring local postcode changes.
      */
-    public static final String Geolocation_Arrive_Destination = "geoLocationArriveDestination";
+    public static final String Geolocation_Change_Postcode = "geoLocationChangePostcode";
 
     /**
      * Monitor the direction changes e.g. turn left or right using bearing.
@@ -96,9 +98,10 @@ public abstract class EventType {
     public static final String Geolocation_Turning = "geolocationTurning";
 
     /**
-     * Monitor the latitude and longitude updates, different location precision provided.
+     * Keep monitoring if a user has arrived a destination,
+     * which is defined by latitude and longitude.
      */
-    public static final String Geolocation_Updated = "geolocationUpdated";
+    public static final String Geolocation_Arrive_Destination = "geoLocationArriveDestination";
 
     /**
      * Monitor incoming phone calls, and check if it comes from a certain contact.
@@ -192,7 +195,7 @@ public abstract class EventType {
 
     public abstract String getEventType();
 
-    public abstract void setFieldName(String fieldName);
+    public abstract <T> void setField(String fieldName, Function<Item, T> fieldCalculationFunction);
 
     public abstract String getFieldName();
 

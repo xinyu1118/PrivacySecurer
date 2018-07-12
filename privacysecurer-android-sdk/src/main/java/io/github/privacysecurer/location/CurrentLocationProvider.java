@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import android.Manifest;
 import android.content.Context;
 import android.location.Location;
@@ -15,9 +16,7 @@ import io.github.privacysecurer.utils.Assertions;
 /**
  * Provide current location with Android standard APIs.
  */
-
 final class CurrentLocationProvider extends PStreamProvider {
-
     private final String level;
 
     CurrentLocationProvider(String level) {

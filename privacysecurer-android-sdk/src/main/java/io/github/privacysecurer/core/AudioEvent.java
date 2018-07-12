@@ -10,6 +10,8 @@ import android.os.Build;
 import android.support.annotation.RequiresApi;
 import android.util.Log;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,17 +19,18 @@ import io.github.privacysecurer.audio.Audio;
 import io.github.privacysecurer.audio.AudioOperators;
 import io.github.privacysecurer.core.exceptions.PSException;
 import io.github.privacysecurer.core.purposes.Purpose;
+import io.github.privacysecurer.utils.Consts;
 
 import static android.content.Context.BATTERY_SERVICE;
+import static io.github.privacysecurer.utils.Assertions.notNull;
 
 /**
  * Audio related events, used for setting event parameters and providing processing methods.
  */
-public class AudioEvent extends EventType {
-
+public class AudioEvent<TValue> extends EventType {
     // Field name options
-    public static final String AvgLoudness = "avgLoudness";
-    public static final String MaxLoudness = "maxLoudness";
+//    public static final String AvgLoudness = "avgLoudness";
+//    public static final String MaxLoudness = "maxLoudness";
 
     // Operator options
     public static final String GTE = "gte";
@@ -53,7 +56,11 @@ public class AudioEvent extends EventType {
      */
     private String fieldName;
     /**
-     * The operator on the field value.
+     * The field value calculation function.
+     */
+    private Function<Item, TValue> fieldCalculationFunction;
+    /**
+     * The comparator on the field value.
      */
     private String comparator;
     /**
@@ -82,30 +89,24 @@ public class AudioEvent extends EventType {
     /**
      * Intermediate data to be returned, average loudness in dB.
      */
-    private Double avgLoudness;
+//    private Double avgLoudness;
     /**
      * Intermediate data to be returned, maximum loudness in dB.
      */
-    private Double maxLoudness;
+//    private Double maxLoudness;
     /**
      * Intermediate data to be returned, user defined field value.
      */
-    private Double customizedField;
+    private Double fieldValue;
 
-    // The boolean flag used to indicate the event is customized or not
-    private Boolean customizedEventFlag;
     // used to count the event occurrence times
     int counter = 0;
-
     private static Object monitor = new Object();
     private static boolean isCharged = false;
     private boolean broadcastRegistered = false;
     BroadcastReceiver receiver;
     Context mContext;
 
-    public void setCustomizedEventFlag() {
-        this.customizedEventFlag = true;
-    }
 
     @Override
     public void setEventType(String eventType) {
@@ -118,8 +119,9 @@ public class AudioEvent extends EventType {
     }
 
     @Override
-    public void setFieldName(String fieldName) {
+    public <T> void setField(String fieldName, Function<Item, T> fieldCalculationFunction) {
         this.fieldName = fieldName;
+        this.fieldCalculationFunction = (Function<Item, TValue>) fieldCalculationFunction;
     }
 
     @Override
@@ -322,97 +324,101 @@ public class AudioEvent extends EventType {
         mContext = context;
         final AudioCallbackData audioCallbackData = new AudioCallbackData();
 
-        // Judge event type
-        if (customizedEventFlag) this.setEventType(EventType.Audio_Customized_Event);
-        switch (fieldName) {
-            case AvgLoudness:
-                if (recurrence == 1)
-                    this.setEventType(EventType.Audio_Check_Average_Loudness);
-                else
-                    this.setEventType(EventType.Audio_Check_Average_Loudness_Periodically);
-                break;
-            case MaxLoudness:
-                if (recurrence == 1)
-                    this.setEventType(EventType.Audio_Check_Maximum_Loudness);
-                else
-                    this.setEventType(EventType.Audio_Check_Maximum_Loudness_Periodically);
-                break;
-        }
+//        switch (fieldName) {
+//            case AvgLoudness:
+//                if (recurrence == 1)
+//                    this.setEventType(EventType.Audio_Check_Average_Loudness);
+//                else
+//                    this.setEventType(EventType.Audio_Check_Average_Loudness_Periodically);
+//                break;
+//            case MaxLoudness:
+//                if (recurrence == 1)
+//                    this.setEventType(EventType.Audio_Check_Maximum_Loudness);
+//                else
+//                    this.setEventType(EventType.Audio_Check_Maximum_Loudness_Periodically);
+//                break;
+//        }
         audioCallbackData.setEventType(eventType);
 
         // Handle events according to event type
         switch (eventType) {
-            case EventType.Audio_Check_Average_Loudness:
+            case EventType.Audio_Oneoff_Event:
                 periodicEvent = false;
 
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (threshold == null) Log.d(Consts.LIB_TAG, "You haven't set threshold yet, it couldn't be null.");
+                if (duration == 0) Log.d(Consts.LIB_TAG, "The sampling duration is 0, it doesn't make sense.");
+
                 try {
-                    avgLoudness = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to average audio loudness once."))
-                            .setField("avgLoudness", AudioOperators.calcLoudness(Audio.AUDIO_DATA))
-                            .getFirst("avgLoudness");
+                    fieldValue = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to "+fieldName+" one time."))
+                            .setField(fieldName, fieldCalculationFunction)
+                            .getFirst(fieldName);
                 } catch (PSException e) {
                     e.printStackTrace();
                 }
 
                 switch (comparator) {
                     case GTE:
-                        if (avgLoudness >= threshold) {
-                            Log.d("Log", "Average loudness is greater than or equal to the threshold.");
+                        if (fieldValue >= threshold) {
+                            Log.d(Consts.LIB_TAG, fieldName+" is greater than or equal to the threshold.");
                             setSatisfyCond();
                             //Toast.makeText(context, " Average loudness is higher than the threshold. ", Toast.LENGTH_SHORT).show();
                         } else
-                            Log.d("Log", "Event hasn't happened yet.");
+                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                         break;
-
                     case LTE:
-                        if (avgLoudness <= threshold) {
-                            Log.d("Log", "Average loudness is lower than or equal to the threshold.");
+                        if (fieldValue <= threshold) {
+                            Log.d(Consts.LIB_TAG, fieldName+" is lower than or equal to the threshold.");
                             setSatisfyCond();
                         } else
-                            Log.d("Log", "Event hasn't happened yet.");
+                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                         break;
-
                     case GT:
-                        if (avgLoudness > threshold) {
-                            Log.d("Log", "Average loudness is greater than the threshold.");
+                        if (fieldValue > threshold) {
+                            Log.d(Consts.LIB_TAG, fieldName+" is greater than the threshold.");
                             setSatisfyCond();
                         } else
-                            Log.d("Log", "Event hasn't happened yet.");
+                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                         break;
-
                     case LT:
-                        if (avgLoudness < threshold) {
-                            Log.d("Log", "Average loudness is lower than the threshold.");
+                        if (fieldValue < threshold) {
+                            Log.d(Consts.LIB_TAG, fieldName+" is lower than the threshold.");
                             setSatisfyCond();
                         } else
-                            Log.d("Log", "Event hasn't happened yet.");
+                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                         break;
-
                     case EQ:
-                        if (avgLoudness.equals(threshold)) {
-                            Log.d("Log", "Average loudness is equal to the threshold.");
+                        if (fieldValue.equals(threshold)) {
+                            Log.d(Consts.LIB_TAG, fieldName+" is equal to the threshold.");
                             setSatisfyCond();
                         } else
-                            Log.d("Log", "Event hasn't happened yet.");
+                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                         break;
-
                     case NEQ:
-                        if (!avgLoudness.equals(threshold)) {
-                            Log.d("Log", "Average loudness isn't equal to the threshold.");
+                        if (!fieldValue.equals(threshold)) {
+                            Log.d(Consts.LIB_TAG, fieldName+" isn't equal to the threshold.");
                             setSatisfyCond();
                         } else
-                            Log.d("Log", "Event hasn't happened yet.");
+                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                         break;
-
                     default:
-                        Log.d("Log", "No matchable operators, please check it.");
-
+                        Log.d(Consts.LIB_TAG, "No matchable operators, please check it.");
                 }
-                audioCallbackData.setAvgLoudness(avgLoudness);
+
+                audioCallbackData.setFieldValue(fieldValue);
                 eventCallback.setAudioCallbackData(audioCallbackData);
                 break;
 
-            case EventType.Audio_Check_Average_Loudness_Periodically:
+            case EventType.Audio_Periodic_Event:
                 periodicEvent = true;
+
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (threshold == null) Log.d(Consts.LIB_TAG, "You haven't set threshold yet, it couldn't be null.");
+                if (duration == 0) Log.d(Consts.LIB_TAG, "The sampling duration is 0, it doesn't make sense.");
+                if (interval == 0) Log.d(Consts.LIB_TAG, "The sampling interval is 0, please ensure it.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
 
                 // Get the current battery level
                 BatteryManager bm = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
@@ -421,237 +427,8 @@ public class AudioEvent extends EventType {
                 // Add interval settings based on the battery level
                 if (optimizationMatrix != null) {
                     for (int i=0; i<optimizationMatrix.size(); i++) {
-                       if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel &&
-                               (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel) {
-                           if (optimizationMatrix.get(i).get(2) != EventType.Off) {
-                               interval = (Long)optimizationMatrix.get(i).get(2);
-                           }
-                           else {
-                               // get current charging status
-                               IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-                               Intent batteryStatus = context.registerReceiver(null, intentFilter);
-                               int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
-                               boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                                       status == BatteryManager.BATTERY_STATUS_FULL;
-
-                               // if the device is charging, just sample data immediately, otherwise
-                               // sleep until it is charged.
-                               if (!isCharging) {
-                                   Log.d("Log", "Event will be paused until getting charged.");
-                                   new WaitThread().start();
-                                   new NotifyThread().start();
-                               }
-                           }
-                           // If found a satisfied section, just break the loop. In this way,
-                           // the boundary value could also be processed appropriately.
-                           break;
-                       }
-                    }
-                }
-
-                final PStreamProvider pStreamProvider = Audio.recordPeriodic(duration, interval);
-                uqi.getData(pStreamProvider, Purpose.UTILITY("Listen to average audio loudness periodically."))
-                        .setField("avgLoudness", AudioOperators.calcLoudness(Audio.AUDIO_DATA))
-                        .forEach("avgLoudness", new Callback<Double>() {
-                            @Override
-                            protected void onInput(Double avgLoudness) {
-                                switch (comparator) {
-                                    case GTE:
-                                        if (avgLoudness >= threshold) {
-                                            counter ++;
-                                            // Stop the monitoring thread when the event has happened recurringNumber times.
-                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                                //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
-                                                pStreamProvider.isCancelled = true;
-                                            } else {
-                                                Log.d("Log", "Average loudness is greater than or equal to the threshold.");
-                                                audioCallbackData.setAvgLoudness(avgLoudness);
-                                                eventCallback.setAudioCallbackData(audioCallbackData);
-                                                setSatisfyCond();
-                                            }
-                                        } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
-                                            satisfyCond = false;
-                                        }
-                                        break;
-
-                                    case LTE:
-                                        if (avgLoudness <= threshold) {
-                                            counter ++;
-                                            if (recurrence != null && counter > recurrence)
-                                                pStreamProvider.isCancelled = true;
-                                            else {
-                                                Log.d("Log", "Average loudness is lower than or equal to the threshold.");
-                                                audioCallbackData.setAvgLoudness(avgLoudness);
-                                                eventCallback.setAudioCallbackData(audioCallbackData);
-                                                setSatisfyCond();
-                                            }
-                                        } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
-                                            satisfyCond = false;
-                                        }
-                                        break;
-
-                                    case GT:
-                                        if (avgLoudness > threshold) {
-                                            counter ++;
-                                            if (recurrence != null && counter > recurrence)
-                                                pStreamProvider.isCancelled = true;
-                                            else {
-                                                Log.d("Log", "Average loudness is greater than the threshold.");
-                                                audioCallbackData.setAvgLoudness(avgLoudness);
-                                                eventCallback.setAudioCallbackData(audioCallbackData);
-                                                setSatisfyCond();
-                                            }
-                                        } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
-                                            satisfyCond = false;
-                                        }
-                                        break;
-
-                                    case LT:
-                                        if (avgLoudness < threshold) {
-                                            counter ++;
-                                            if (recurrence != null && counter > recurrence)
-                                                pStreamProvider.isCancelled = true;
-                                            else {
-                                                Log.d("Log", "Average loudness is lower than the threshold.");
-                                                audioCallbackData.setAvgLoudness(avgLoudness);
-                                                eventCallback.setAudioCallbackData(audioCallbackData);
-                                                setSatisfyCond();
-                                            }
-                                        } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
-                                            satisfyCond = false;
-                                        }
-                                        break;
-
-                                    case EQ:
-                                        if (avgLoudness.equals(threshold)) {
-                                            counter ++;
-                                            if (recurrence != null && counter > recurrence)
-                                                pStreamProvider.isCancelled = true;
-                                            else {
-                                                Log.d("Log", "Average loudness is equal to the threshold.");
-                                                audioCallbackData.setAvgLoudness(avgLoudness);
-                                                eventCallback.setAudioCallbackData(audioCallbackData);
-                                                setSatisfyCond();
-                                            }
-                                        } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
-                                            satisfyCond = false;
-                                        }
-                                        break;
-
-                                    case NEQ:
-                                        if (!avgLoudness.equals(threshold)) {
-                                            counter ++;
-                                            if (recurrence != null && counter > recurrence)
-                                                pStreamProvider.isCancelled = true;
-                                            else {
-                                                Log.d("Log", "Average loudness isn't equal to the threshold.");
-                                                audioCallbackData.setAvgLoudness(avgLoudness);
-                                                eventCallback.setAudioCallbackData(audioCallbackData);
-                                                setSatisfyCond();
-                                            }
-                                        } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
-                                            satisfyCond = false;
-                                        }
-                                        break;
-
-                                    default:
-                                        Log.d("Log", "No matchable operators, please check it.");
-                                }
-
-                            }
-                        });
-
-                if (broadcastRegistered)
-                    mContext.unregisterReceiver(receiver);
-
-                break;
-
-            case EventType.Audio_Check_Maximum_Loudness:
-                periodicEvent = false;
-
-                try {
-                    maxLoudness = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to audio maximum loudness once."))
-                            .setField("maxLoudness", AudioOperators.calcMaxLoudness(Audio.AUDIO_DATA))
-                            .getFirst("maxLoudness");
-                } catch (PSException e) {
-                    e.printStackTrace();
-                }
-
-                switch (comparator) {
-                    case GTE:
-                        if (maxLoudness >= threshold) {
-                            Log.d("Log", "Maximum loudness is greater than or equal to the threshold.");
-                            setSatisfyCond();
-                        } else
-                            Log.d("Log", "Event hasn't happened yet.");
-                        break;
-
-                    case LTE:
-                        if (maxLoudness <= threshold) {
-                            Log.d("Log", "Maximum loudness is lower than or equal to the threshold.");
-                            setSatisfyCond();
-                        } else
-                            Log.d("Log", "Event hasn't happened yet.");
-                        break;
-
-                    case GT:
-                        if (maxLoudness > threshold) {
-                            Log.d("Log", "Maximum loudness is greater than the threshold.");
-                            setSatisfyCond();
-                        } else
-                            Log.d("Log", "Event hasn't happened yet.");
-                        break;
-
-                    case LT:
-                        if (maxLoudness < threshold) {
-                            Log.d("Log", "Maximum loudness is lower than the threshold.");
-                            setSatisfyCond();
-                        } else
-                            Log.d("Log", "Event hasn't happened yet.");
-                        break;
-
-                    case EQ:
-                        if (maxLoudness.equals(threshold)) {
-                            Log.d("Log", "Maximum loudness is equal to the threshold.");
-                            setSatisfyCond();
-                        } else
-                            Log.d("Log", "Event hasn't happened yet.");
-                        break;
-
-                    case NEQ:
-                        if (!maxLoudness.equals(threshold)) {
-                            Log.d("Log", "Maximum loudness isn't equal to the threshold.");
-                            setSatisfyCond();
-                        } else
-                            Log.d("Log", "Event hasn't happened yet.");
-                        break;
-
-                    default:
-                        Log.d("Log", "No matchable operators, please check it.");
-
-                }
-                audioCallbackData.setMaxLoudness(maxLoudness);
-                eventCallback.setAudioCallbackData(audioCallbackData);
-                break;
-
-            case EventType.Audio_Check_Maximum_Loudness_Periodically:
-                periodicEvent = true;
-
-                // Get the current battery level
-                BatteryManager bm1 = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
-                int batteryLevel1 = bm1.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-
-                // Add interval settings based on the battery level
-                if (optimizationMatrix != null) {
-                    for (int i=0; i<optimizationMatrix.size(); i++) {
-                        if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel1 &&
-                                (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel1) {
+                        if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel &&
+                                (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel) {
                             if (optimizationMatrix.get(i).get(2) != EventType.Off) {
                                 interval = (Long)optimizationMatrix.get(i).get(2);
                             }
@@ -662,11 +439,10 @@ public class AudioEvent extends EventType {
                                 int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
                                 boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
                                         status == BatteryManager.BATTERY_STATUS_FULL;
-
                                 // if the device is charging, just sample data immediately, otherwise
                                 // sleep until it is charged.
                                 if (!isCharging) {
-                                    Log.d("Log", "Event will be paused until getting charged.");
+                                    Log.d(Consts.LIB_TAG, "Event will be paused until getting charged.");
                                     new WaitThread().start();
                                     new NotifyThread().start();
                                 }
@@ -677,376 +453,601 @@ public class AudioEvent extends EventType {
                         }
                     }
                 }
-
-                final PStreamProvider pStreamProvider1 = Audio.recordPeriodic(duration, interval);
-                uqi.getData(pStreamProvider1, Purpose.UTILITY("Listen to audio maximum loudness periodically."))
-                        .setField("maxLoudness", AudioOperators.calcMaxLoudness(Audio.AUDIO_DATA))
-                        .forEach("maxLoudness", new Callback<Double>() {
+//
+                final PStreamProvider pStreamProvider = Audio.recordPeriodic(duration, interval);
+                uqi.getData(pStreamProvider, Purpose.UTILITY("Listen to "+fieldName+" periodically."))
+                        .setField(fieldName, fieldCalculationFunction)
+                        .forEach(fieldName, new Callback<Double>() {
                             @Override
-                            protected void onInput(Double maxLoudness) {
+                            protected void onInput(Double fieldValue) {
                                 switch (comparator) {
                                     case GTE:
-                                        if (maxLoudness >= threshold) {
+                                        if (fieldValue >= threshold) {
                                             counter ++;
                                             // Stop the monitoring thread when the event has happened recurringNumber times.
                                             if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                                //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
-                                                pStreamProvider1.isCancelled = true;
+                                                //Log.d(Consts.LIB_TAG, "No notification will be returned, the monitoring thread has been stopped.");
+                                                pStreamProvider.isCancelled = true;
                                             } else {
-                                                Log.d("Log", "Maximum loudness is greater than or equal to the threshold.");
-                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                Log.d(Consts.LIB_TAG, fieldName+" is greater than or equal to the threshold.");
+                                                audioCallbackData.setFieldValue(fieldValue);
                                                 eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
+                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                                             satisfyCond = false;
                                         }
                                         break;
-
                                     case LTE:
-                                        if (maxLoudness <= threshold) {
+                                        if (fieldValue <= threshold) {
                                             counter ++;
                                             if (recurrence != null && counter > recurrence)
-                                                pStreamProvider1.isCancelled = true;
+                                                pStreamProvider.isCancelled = true;
                                             else {
-                                                Log.d("Log", "Maximum loudness is lower than or equal to the threshold.");
-                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                Log.d(Consts.LIB_TAG, fieldName+" is lower than or equal to the threshold.");
+                                                audioCallbackData.setFieldValue(fieldValue);
                                                 eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
+                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                                             satisfyCond = false;
                                         }
                                         break;
-
                                     case GT:
-                                        if (maxLoudness > threshold) {
+                                        if (fieldValue > threshold) {
                                             counter ++;
                                             if (recurrence != null && counter > recurrence)
-                                                pStreamProvider1.isCancelled = true;
+                                                pStreamProvider.isCancelled = true;
                                             else {
-                                                Log.d("Log", "Maximum loudness is greater than the threshold.");
-                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                Log.d(Consts.LIB_TAG, fieldName+" is greater than the threshold.");
+                                                audioCallbackData.setFieldValue(fieldValue);
                                                 eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
+                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                                             satisfyCond = false;
                                         }
                                         break;
-
                                     case LT:
-                                        if (maxLoudness < threshold) {
+                                        if (fieldValue < threshold) {
                                             counter ++;
                                             if (recurrence != null && counter > recurrence)
-                                                pStreamProvider1.isCancelled = true;
+                                                pStreamProvider.isCancelled = true;
                                             else {
-                                                Log.d("Log", "Maximum loudness is lower than the threshold.");
-                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                Log.d(Consts.LIB_TAG, fieldName+" is lower than the threshold.");
+                                                audioCallbackData.setFieldValue(fieldValue);
                                                 eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
+                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                                             satisfyCond = false;
                                         }
                                         break;
-
                                     case EQ:
-                                        if (maxLoudness.equals(threshold)) {
+                                        if (fieldValue.equals(threshold)) {
                                             counter ++;
                                             if (recurrence != null && counter > recurrence)
-                                                pStreamProvider1.isCancelled = true;
+                                                pStreamProvider.isCancelled = true;
                                             else {
-                                                Log.d("Log", "Maximum loudness is equal to the threshold.");
-                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                Log.d(Consts.LIB_TAG, fieldName+" is equal to the threshold.");
+                                                audioCallbackData.setFieldValue(fieldValue);
                                                 eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
+                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                                             satisfyCond = false;
                                         }
                                         break;
-
                                     case NEQ:
-                                        if (!maxLoudness.equals(threshold)) {
+                                        if (!fieldValue.equals(threshold)) {
                                             counter ++;
                                             if (recurrence != null && counter > recurrence)
-                                                pStreamProvider1.isCancelled = true;
+                                                pStreamProvider.isCancelled = true;
                                             else {
-                                                Log.d("Log", "Maximum loudness isn't equal to the threshold.");
-                                                audioCallbackData.setMaxLoudness(maxLoudness);
+                                                Log.d(Consts.LIB_TAG, fieldName+" isn't equal to the threshold.");
+                                                audioCallbackData.setFieldValue(fieldValue);
                                                 eventCallback.setAudioCallbackData(audioCallbackData);
                                                 setSatisfyCond();
                                             }
                                         } else {
-                                            Log.d("Log", "Event hasn't happened yet.");
+                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                                             satisfyCond = false;
                                         }
                                         break;
-
                                     default:
-                                        Log.d("Log", "No matchable operators, please check it.");
+                                        Log.d(Consts.LIB_TAG, "No matchable operators, please check it.");
                                 }
                             }
                         });
 
                 if (broadcastRegistered)
                     mContext.unregisterReceiver(receiver);
-
-                break;
-
-            case EventType.Audio_Has_Human_Voice:
-                //TODO
-                break;
-
-            case EventType.Audio_Customized_Event:
-                // Audio data sampling only once
-                if (interval == 0) {
-                    periodicEvent = false;
-                    try {
-                        customizedField = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to customized event once."))
-                                .setField(fieldName, AudioOperators.customizedFunctions(Audio.AUDIO_DATA))
-                                .getFirst(fieldName);
-                    } catch (PSException e) {
-                        e.printStackTrace();
-                    }
-
-                    switch (comparator) {
-                        case GTE:
-                            if (customizedField >= threshold) {
-                                Log.d("Log", fieldName+" is greater than or equal to the threshold.");
-                                setSatisfyCond();
-                                //Toast.makeText(context, " Average loudness is higher than the threshold. ", Toast.LENGTH_SHORT).show();
-                            } else
-                                Log.d("Log", "Event hasn't happened yet.");
-                            break;
-
-                        case LTE:
-                            if (customizedField <= threshold) {
-                                Log.d("Log", fieldName+" is lower than or equal to the threshold.");
-                                setSatisfyCond();
-                            } else
-                                Log.d("Log", "Event hasn't happened yet.");
-                            break;
-
-                        case GT:
-                            if (customizedField > threshold) {
-                                Log.d("Log", fieldName+" is greater than the threshold.");
-                                setSatisfyCond();
-                            } else
-                                Log.d("Log", "Event hasn't happened yet.");
-                            break;
-
-                        case LT:
-                            if (customizedField < threshold) {
-                                Log.d("Log", fieldName+" is lower than the threshold.");
-                                setSatisfyCond();
-                            } else
-                                Log.d("Log", "Event hasn't happened yet.");
-                            break;
-
-                        case EQ:
-                            if (customizedField.equals(threshold)) {
-                                Log.d("Log", fieldName+" is equal to the threshold.");
-                                setSatisfyCond();
-                            } else
-                                Log.d("Log", "Event hasn't happened yet.");
-                            break;
-
-                        case NEQ:
-                            if (!customizedField.equals(threshold)) {
-                                Log.d("Log", fieldName+" isn't equal to the threshold.");
-                                setSatisfyCond();
-                            } else
-                                Log.d("Log", "Event hasn't happened yet.");
-                            break;
-
-                        default:
-                            Log.d("Log", "No matchable operators, please check it.");
-
-                    }
-                    audioCallbackData.setCustomizedField(customizedField);
-                    eventCallback.setAudioCallbackData(audioCallbackData);
-
-                // Audio data sampling periodically
-                } else {
-                    periodicEvent = true;
-
-                    // Get the current battery level
-                    BatteryManager bm2 = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
-                    int batteryLevel2 = bm2.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-
-                    // Add interval settings based on the battery level
-                    if (optimizationMatrix != null) {
-                        for (int i=0; i<optimizationMatrix.size(); i++) {
-                            if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel2 &&
-                                    (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel2) {
-                                if (optimizationMatrix.get(i).get(2) != EventType.Off) {
-                                    interval = (Long)optimizationMatrix.get(i).get(2);
-                                }
-                                else {
-                                    // get current charging status
-                                    IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-                                    Intent batteryStatus = context.registerReceiver(null, intentFilter);
-                                    int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
-                                    boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                                            status == BatteryManager.BATTERY_STATUS_FULL;
-
-                                    // if the device is charging, just sample data immediately, otherwise
-                                    // sleep until it is charged.
-                                    if (!isCharging) {
-                                        Log.d("Log", "Event will be paused until getting charged.");
-                                        new WaitThread().start();
-                                        new NotifyThread().start();
-                                    }
-                                }
-                                // If found a satisfied section, just break the loop. In this way,
-                                // the boundary value could also be processed appropriately.
-                                break;
-                            }
-                        }
-                    }
-
-                    final PStreamProvider pStreamProvider2 = Audio.recordPeriodic(duration, interval);
-                    uqi.getData(pStreamProvider2, Purpose.UTILITY("Listen to customized event periodically."))
-                            .setField(fieldName, AudioOperators.customizedFunctions(Audio.AUDIO_DATA))
-                            .forEach(fieldName, new Callback<Double>() {
-                                @Override
-                                protected void onInput(Double customizedField) {
-                                    switch (comparator) {
-                                        case GTE:
-                                            if (customizedField >= threshold) {
-                                                counter ++;
-                                                // Stop the monitoring thread when the event has happened recurringNumber times.
-                                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                                    //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
-                                                    pStreamProvider2.isCancelled = true;
-                                                } else {
-                                                    Log.d("Log", fieldName+" is greater than or equal to the threshold.");
-                                                    audioCallbackData.setCustomizedField(customizedField);
-                                                    eventCallback.setAudioCallbackData(audioCallbackData);
-                                                    setSatisfyCond();
-                                                }
-                                            } else {
-                                                Log.d("Log", "Event hasn't happened yet.");
-                                                satisfyCond = false;
-                                            }
-                                            break;
-
-                                        case LTE:
-                                            if (customizedField <= threshold) {
-                                                counter ++;
-                                                if (recurrence != null && counter > recurrence)
-                                                    pStreamProvider2.isCancelled = true;
-                                                else {
-                                                    Log.d("Log", fieldName+" is lower than or equal to the threshold.");
-                                                    audioCallbackData.setCustomizedField(customizedField);
-                                                    eventCallback.setAudioCallbackData(audioCallbackData);
-                                                    setSatisfyCond();
-                                                }
-                                            } else {
-                                                Log.d("Log", "Event hasn't happened yet.");
-                                                satisfyCond = false;
-                                            }
-                                            break;
-
-                                        case GT:
-                                            if (customizedField > threshold) {
-                                                counter ++;
-                                                if (recurrence != null && counter > recurrence)
-                                                    pStreamProvider2.isCancelled = true;
-                                                else {
-                                                    Log.d("Log", fieldName+" is greater than the threshold.");
-                                                    audioCallbackData.setCustomizedField(customizedField);
-                                                    eventCallback.setAudioCallbackData(audioCallbackData);
-                                                    setSatisfyCond();
-                                                }
-                                            } else {
-                                                Log.d("Log", "Event hasn't happened yet.");
-                                                satisfyCond = false;
-                                            }
-                                            break;
-
-                                        case LT:
-                                            if (customizedField < threshold) {
-                                                counter ++;
-                                                if (recurrence != null && counter > recurrence)
-                                                    pStreamProvider2.isCancelled = true;
-                                                else {
-                                                    Log.d("Log", fieldName+" is lower than the threshold.");
-                                                    audioCallbackData.setCustomizedField(customizedField);
-                                                    eventCallback.setAudioCallbackData(audioCallbackData);
-                                                    setSatisfyCond();
-                                                }
-                                            } else {
-                                                Log.d("Log", "Event hasn't happened yet.");
-                                                satisfyCond = false;
-                                            }
-                                            break;
-
-                                        case EQ:
-                                            if (customizedField.equals(threshold)) {
-                                                counter ++;
-                                                if (recurrence != null && counter > recurrence)
-                                                    pStreamProvider2.isCancelled = true;
-                                                else {
-                                                    Log.d("Log", fieldName+" is equal to the threshold.");
-                                                    audioCallbackData.setCustomizedField(customizedField);
-                                                    eventCallback.setAudioCallbackData(audioCallbackData);
-                                                    setSatisfyCond();
-                                                }
-                                            } else {
-                                                Log.d("Log", "Event hasn't happened yet.");
-                                                satisfyCond = false;
-                                            }
-                                            break;
-
-                                        case NEQ:
-                                            if (!customizedField.equals(threshold)) {
-                                                counter ++;
-                                                if (recurrence != null && counter > recurrence)
-                                                    pStreamProvider2.isCancelled = true;
-                                                else {
-                                                    Log.d("Log", fieldName+" isn't equal to the threshold.");
-                                                    audioCallbackData.setCustomizedField(customizedField);
-                                                    eventCallback.setAudioCallbackData(audioCallbackData);
-                                                    setSatisfyCond();
-                                                }
-                                            } else {
-                                                Log.d("Log", "Event hasn't happened yet.");
-                                                satisfyCond = false;
-                                            }
-                                            break;
-
-                                        default:
-                                            Log.d("Log", "No matchable operators, please check it.");
-                                    }
-                                }
-                            });
-
-                    if (broadcastRegistered)
-                        mContext.unregisterReceiver(receiver);
-                }
-
                 break;
 
             default:
-                Log.d("Log", "No audio event matches your input, please check it.");
+                Log.d(Consts.LIB_TAG, "No audio event matches your input, please check it.");
+
+
+
+//            case EventType.Audio_Check_Average_Loudness:
+//                periodicEvent = false;
+//
+//                try {
+//                    avgLoudness = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to average audio loudness once."))
+//                            .setField("avgLoudness", AudioOperators.calcAvgLoudness(Audio.AUDIO_DATA))
+//                            .getFirst("avgLoudness");
+//                } catch (PSException e) {
+//                    e.printStackTrace();
+//                }
+//
+//                switch (comparator) {
+//                    case GTE:
+//                        if (avgLoudness >= threshold) {
+//                            Log.d(Consts.LIB_TAG, "Average loudness is greater than or equal to the threshold.");
+//                            setSatisfyCond();
+//                            //Toast.makeText(context, " Average loudness is higher than the threshold. ", Toast.LENGTH_SHORT).show();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case LTE:
+//                        if (avgLoudness <= threshold) {
+//                            Log.d(Consts.LIB_TAG, "Average loudness is lower than or equal to the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case GT:
+//                        if (avgLoudness > threshold) {
+//                            Log.d(Consts.LIB_TAG, "Average loudness is greater than the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case LT:
+//                        if (avgLoudness < threshold) {
+//                            Log.d(Consts.LIB_TAG, "Average loudness is lower than the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case EQ:
+//                        if (avgLoudness.equals(threshold)) {
+//                            Log.d(Consts.LIB_TAG, "Average loudness is equal to the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case NEQ:
+//                        if (!avgLoudness.equals(threshold)) {
+//                            Log.d(Consts.LIB_TAG, "Average loudness isn't equal to the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    default:
+//                        Log.d(Consts.LIB_TAG, "No matchable operators, please check it.");
+//
+//                }
+//                audioCallbackData.setAvgLoudness(avgLoudness);
+//                eventCallback.setAudioCallbackData(audioCallbackData);
+//                break;
+//
+//            case EventType.Audio_Check_Average_Loudness_Periodically:
+//                periodicEvent = true;
+//
+//                // Get the current battery level
+//                BatteryManager bm = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
+//                int batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+//
+//                // Add interval settings based on the battery level
+//                if (optimizationMatrix != null) {
+//                    for (int i=0; i<optimizationMatrix.size(); i++) {
+//                       if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel &&
+//                               (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel) {
+//                           if (optimizationMatrix.get(i).get(2) != EventType.Off) {
+//                               interval = (Long)optimizationMatrix.get(i).get(2);
+//                           }
+//                           else {
+//                               // get current charging status
+//                               IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+//                               Intent batteryStatus = context.registerReceiver(null, intentFilter);
+//                               int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+//                               boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+//                                       status == BatteryManager.BATTERY_STATUS_FULL;
+//
+//                               // if the device is charging, just sample data immediately, otherwise
+//                               // sleep until it is charged.
+//                               if (!isCharging) {
+//                                   Log.d(Consts.LIB_TAG, "Event will be paused until getting charged.");
+//                                   new WaitThread().start();
+//                                   new NotifyThread().start();
+//                               }
+//                           }
+//                           // If found a satisfied section, just break the loop. In this way,
+//                           // the boundary value could also be processed appropriately.
+//                           break;
+//                       }
+//                    }
+//                }
+//
+//                final PStreamProvider pStreamProvider = Audio.recordPeriodic(duration, interval);
+//                uqi.getData(pStreamProvider, Purpose.UTILITY("Listen to average audio loudness periodically."))
+//                        .setField("avgLoudness", AudioOperators.calcAvgLoudness(Audio.AUDIO_DATA))
+//                        .forEach("avgLoudness", new Callback<Double>() {
+//                            @Override
+//                            protected void onInput(Double avgLoudness) {
+//                                switch (comparator) {
+//                                    case GTE:
+//                                        if (avgLoudness >= threshold) {
+//                                            counter ++;
+//                                            // Stop the monitoring thread when the event has happened recurringNumber times.
+//                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+//                                                //Log.d(Consts.LIB_TAG, "No notification will be returned, the monitoring thread has been stopped.");
+//                                                pStreamProvider.isCancelled = true;
+//                                            } else {
+//                                                Log.d(Consts.LIB_TAG, "Average loudness is greater than or equal to the threshold.");
+//                                                audioCallbackData.setAvgLoudness(avgLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case LTE:
+//                                        if (avgLoudness <= threshold) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Average loudness is lower than or equal to the threshold.");
+//                                                audioCallbackData.setAvgLoudness(avgLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case GT:
+//                                        if (avgLoudness > threshold) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Average loudness is greater than the threshold.");
+//                                                audioCallbackData.setAvgLoudness(avgLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case LT:
+//                                        if (avgLoudness < threshold) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Average loudness is lower than the threshold.");
+//                                                audioCallbackData.setAvgLoudness(avgLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case EQ:
+//                                        if (avgLoudness.equals(threshold)) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Average loudness is equal to the threshold.");
+//                                                audioCallbackData.setAvgLoudness(avgLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case NEQ:
+//                                        if (!avgLoudness.equals(threshold)) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Average loudness isn't equal to the threshold.");
+//                                                audioCallbackData.setAvgLoudness(avgLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    default:
+//                                        Log.d(Consts.LIB_TAG, "No matchable operators, please check it.");
+//                                }
+//
+//                            }
+//                        });
+//
+//                if (broadcastRegistered)
+//                    mContext.unregisterReceiver(receiver);
+//
+//                break;
+//
+//            case EventType.Audio_Check_Maximum_Loudness:
+//                periodicEvent = false;
+//
+//                try {
+//                    maxLoudness = uqi.getData(Audio.record(duration), Purpose.UTILITY("Listen to audio maximum loudness once."))
+//                            .setField("maxLoudness", AudioOperators.calcMaxLoudness(Audio.AUDIO_DATA))
+//                            .getFirst("maxLoudness");
+//                } catch (PSException e) {
+//                    e.printStackTrace();
+//                }
+//
+//                switch (comparator) {
+//                    case GTE:
+//                        if (maxLoudness >= threshold) {
+//                            Log.d(Consts.LIB_TAG, "Maximum loudness is greater than or equal to the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case LTE:
+//                        if (maxLoudness <= threshold) {
+//                            Log.d(Consts.LIB_TAG, "Maximum loudness is lower than or equal to the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case GT:
+//                        if (maxLoudness > threshold) {
+//                            Log.d(Consts.LIB_TAG, "Maximum loudness is greater than the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case LT:
+//                        if (maxLoudness < threshold) {
+//                            Log.d(Consts.LIB_TAG, "Maximum loudness is lower than the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case EQ:
+//                        if (maxLoudness.equals(threshold)) {
+//                            Log.d(Consts.LIB_TAG, "Maximum loudness is equal to the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    case NEQ:
+//                        if (!maxLoudness.equals(threshold)) {
+//                            Log.d(Consts.LIB_TAG, "Maximum loudness isn't equal to the threshold.");
+//                            setSatisfyCond();
+//                        } else
+//                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                        break;
+//
+//                    default:
+//                        Log.d(Consts.LIB_TAG, "No matchable operators, please check it.");
+//
+//                }
+//                audioCallbackData.setMaxLoudness(maxLoudness);
+//                eventCallback.setAudioCallbackData(audioCallbackData);
+//                break;
+//
+//            case EventType.Audio_Check_Maximum_Loudness_Periodically:
+//                periodicEvent = true;
+//
+//                // Get the current battery level
+//                BatteryManager bm1 = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
+//                int batteryLevel1 = bm1.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+//
+//                // Add interval settings based on the battery level
+//                if (optimizationMatrix != null) {
+//                    for (int i=0; i<optimizationMatrix.size(); i++) {
+//                        if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel1 &&
+//                                (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel1) {
+//                            if (optimizationMatrix.get(i).get(2) != EventType.Off) {
+//                                interval = (Long)optimizationMatrix.get(i).get(2);
+//                            }
+//                            else {
+//                                // get current charging status
+//                                IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+//                                Intent batteryStatus = context.registerReceiver(null, intentFilter);
+//                                int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
+//                                boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+//                                        status == BatteryManager.BATTERY_STATUS_FULL;
+//
+//                                // if the device is charging, just sample data immediately, otherwise
+//                                // sleep until it is charged.
+//                                if (!isCharging) {
+//                                    Log.d(Consts.LIB_TAG, "Event will be paused until getting charged.");
+//                                    new WaitThread().start();
+//                                    new NotifyThread().start();
+//                                }
+//                            }
+//                            // If found a satisfied section, just break the loop. In this way,
+//                            // the boundary value could also be processed appropriately.
+//                            break;
+//                        }
+//                    }
+//                }
+//
+//                final PStreamProvider pStreamProvider1 = Audio.recordPeriodic(duration, interval);
+//                uqi.getData(pStreamProvider1, Purpose.UTILITY("Listen to audio maximum loudness periodically."))
+//                        .setField("maxLoudness", AudioOperators.calcMaxLoudness(Audio.AUDIO_DATA))
+//                        .forEach("maxLoudness", new Callback<Double>() {
+//                            @Override
+//                            protected void onInput(Double maxLoudness) {
+//                                switch (comparator) {
+//                                    case GTE:
+//                                        if (maxLoudness >= threshold) {
+//                                            counter ++;
+//                                            // Stop the monitoring thread when the event has happened recurringNumber times.
+//                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+//                                                //Log.d(Consts.LIB_TAG, "No notification will be returned, the monitoring thread has been stopped.");
+//                                                pStreamProvider1.isCancelled = true;
+//                                            } else {
+//                                                Log.d(Consts.LIB_TAG, "Maximum loudness is greater than or equal to the threshold.");
+//                                                audioCallbackData.setMaxLoudness(maxLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case LTE:
+//                                        if (maxLoudness <= threshold) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider1.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Maximum loudness is lower than or equal to the threshold.");
+//                                                audioCallbackData.setMaxLoudness(maxLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case GT:
+//                                        if (maxLoudness > threshold) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider1.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Maximum loudness is greater than the threshold.");
+//                                                audioCallbackData.setMaxLoudness(maxLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case LT:
+//                                        if (maxLoudness < threshold) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider1.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Maximum loudness is lower than the threshold.");
+//                                                audioCallbackData.setMaxLoudness(maxLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case EQ:
+//                                        if (maxLoudness.equals(threshold)) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider1.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Maximum loudness is equal to the threshold.");
+//                                                audioCallbackData.setMaxLoudness(maxLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    case NEQ:
+//                                        if (!maxLoudness.equals(threshold)) {
+//                                            counter ++;
+//                                            if (recurrence != null && counter > recurrence)
+//                                                pStreamProvider1.isCancelled = true;
+//                                            else {
+//                                                Log.d(Consts.LIB_TAG, "Maximum loudness isn't equal to the threshold.");
+//                                                audioCallbackData.setMaxLoudness(maxLoudness);
+//                                                eventCallback.setAudioCallbackData(audioCallbackData);
+//                                                setSatisfyCond();
+//                                            }
+//                                        } else {
+//                                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+//                                            satisfyCond = false;
+//                                        }
+//                                        break;
+//
+//                                    default:
+//                                        Log.d(Consts.LIB_TAG, "No matchable operators, please check it.");
+//                                }
+//                            }
+//                        });
+//
+//                if (broadcastRegistered)
+//                    mContext.unregisterReceiver(receiver);
+//
+//                break;
+//
+//            case EventType.Audio_Has_Human_Voice:
+//                //TODO
+//                break;
+//
+//            default:
+//                Log.d(Consts.LIB_TAG, "No audio event matches your input, please check it.");
         }
     }
 
     /**
      * Builder pattern used to construct audio related events.
      */
-    public static class AudioEventBuilder {
+    public static class AudioEventBuilder<TValue> {
         private String eventDescription;
         private String fieldName;
-        private Boolean customizedEventFlag;
+        private Function<Item, TValue> fieldCalculationFunction;
         private String comparator;
         private Double threshold;
         private long duration;
@@ -1059,14 +1060,9 @@ public class AudioEvent extends EventType {
             return this;
         }
 
-        public AudioEventBuilder setFieldName(String fieldName, Function<Item, Double> customizedFunctions) {
+        public <Tout> AudioEventBuilder setField(String fieldName, Function<Item, Tout> fieldCalculationFunction) {
             this.fieldName = fieldName;
-            customizedEventFlag = true;
-            return this;
-        }
-
-        public AudioEventBuilder setFieldName(String fieldName) {
-            this.fieldName = fieldName;
+            this.fieldCalculationFunction = (Function<Item, TValue>) notNull("fieldCalculationFunction", fieldCalculationFunction);
             return this;
         }
 
@@ -1108,11 +1104,7 @@ public class AudioEvent extends EventType {
             AudioEvent audioEvent = new AudioEvent();
 
             if (fieldName != null) {
-                audioEvent.setFieldName(fieldName);
-            }
-
-            if (customizedEventFlag != null) {
-                audioEvent.setCustomizedEventFlag();
+                audioEvent.setField(fieldName, fieldCalculationFunction);
             }
 
             if (comparator != null) {
@@ -1138,6 +1130,12 @@ public class AudioEvent extends EventType {
             if (optimizationMatrix != null) {
                 audioEvent.addOptimizationConstraints(optimizationMatrix);
             }
+
+            // Judge event type
+            if (recurrence == 1)
+                audioEvent.setEventType(EventType.Audio_Oneoff_Event);
+            else
+                audioEvent.setEventType(EventType.Audio_Periodic_Event);
 
             return audioEvent;
         }

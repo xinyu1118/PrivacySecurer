@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import io.github.privacysecurer.utils.LocationUtils;
 
 /**

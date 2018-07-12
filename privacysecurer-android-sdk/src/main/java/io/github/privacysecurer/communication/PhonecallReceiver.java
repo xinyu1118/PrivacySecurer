@@ -1,5 +1,6 @@
 package io.github.privacysecurer.communication;
 
+
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -8,7 +9,7 @@ import android.telephony.TelephonyManager;
 import java.util.Date;
 
 /**
- * Receive phone call related broadcasts
+ * Receive phone call related broadcasts.
  */
 abstract class PhonecallReceiver extends BroadcastReceiver {
 

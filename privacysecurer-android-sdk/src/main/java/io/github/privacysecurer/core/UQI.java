@@ -75,10 +75,11 @@ public class UQI {
             event.setBroadListener(new BroadListener() {
                 @Override
                 public void onSuccess() {
-                    //Log.d("Log", "Event satisfies conditions.");
+//                    Log.d("Log", "Event satisfies conditions.");
                     switch (event.getEventType()) {
-                        case EventType.Audio_Check_Average_Loudness:case EventType.Audio_Check_Average_Loudness_Periodically:case EventType.Audio_Has_Human_Voice:
-                        case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:case EventType.Audio_Customized_Event:
+//                        case EventType.Audio_Check_Average_Loudness:case EventType.Audio_Check_Average_Loudness_Periodically:case EventType.Audio_Has_Human_Voice:
+//                        case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:
+                        case EventType.Audio_Oneoff_Event:case EventType.Audio_Periodic_Event:
                             callback.onEvent(callback.getAudioCallbackData());
                             break;
                         case EventType.Geolocation_Fence:case EventType.Geolocation_Check_Place:case EventType.Geolocation_Updated:
@@ -113,8 +114,9 @@ public class UQI {
             });
         } else {
             switch (event.getEventType()) {
-                case EventType.Audio_Check_Average_Loudness:case EventType.Audio_Check_Average_Loudness_Periodically:case EventType.Audio_Has_Human_Voice:
-                case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:case EventType.Audio_Customized_Event:
+//                case EventType.Audio_Check_Average_Loudness:case EventType.Audio_Check_Average_Loudness_Periodically:case EventType.Audio_Has_Human_Voice:
+//                case EventType.Audio_Check_Maximum_Loudness:case EventType.Audio_Check_Maximum_Loudness_Periodically:
+                case EventType.Audio_Oneoff_Event:case EventType.Audio_Periodic_Event:
                     callback.onEvent(callback.getAudioCallbackData());
                     break;
                 case EventType.Geolocation_Fence:case EventType.Geolocation_Check_Place:case EventType.Geolocation_Updated:

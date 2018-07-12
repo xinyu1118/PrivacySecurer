@@ -1,5 +1,6 @@
 package io.github.privacysecurer.communication;
 
+
 import android.Manifest;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -9,16 +10,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
-import android.util.Log;
 
 import io.github.privacysecurer.core.UQI;
 import io.github.privacysecurer.core.PStreamProvider;
 import io.github.privacysecurer.utils.CommunicationUtils;
 
 /**
- * Provide a live stream of incoming SMS messages
+ * Provide a live stream of incoming SMS messages.
  */
-
 class SMSIncomingMessageProvider extends PStreamProvider {
 
     private SMSReceiver smsReceiver;

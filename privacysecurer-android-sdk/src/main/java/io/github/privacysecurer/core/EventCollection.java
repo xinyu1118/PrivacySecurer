@@ -55,7 +55,7 @@ public class EventCollection extends EventType {
     }
 
     @Override
-    public void setFieldName(String fieldName) {
+    public <T> void setField(String fieldName, Function<Item, T> fieldCalculationFunction) {
 
     }
 
@@ -63,7 +63,6 @@ public class EventCollection extends EventType {
     public String getFieldName() {
         return null;
     }
-
 
     @Override
     public void setComparator(String comparator) {

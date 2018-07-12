@@ -11,6 +11,7 @@ import java.util.List;
  */
 @PSOperatorWrapper
 public class AudioOperators {
+
     /**
      * Calculate the average (RMS) loudness of the audio specified by an AudioData field.
      * The loudness is an double number indicating the sound pressure level in dB.
@@ -18,7 +19,7 @@ public class AudioOperators {
      * @param audioDataField the name of the AudioData field.
      * @return the function.
      */
-    public static Function<Item, Double> calcLoudness(String audioDataField) {
+    public static Function<Item, Double> calcAvgLoudness(String audioDataField) {
         return new AudioLoudnessCalculator(audioDataField);
     }
 
@@ -39,9 +40,9 @@ public class AudioOperators {
      * @param audioDataField the name of the AudioData field.
      * @return the function.
      */
-    public static Function<Item, Double> customizedFunctions(String audioDataField) {
-        return new CustomizedFieldGenerator(audioDataField);
-    }
+//    public static Function<Item, Double> customizedFunctions(String audioDataField) {
+//        return new CustomizedFieldGenerator(audioDataField);
+//    }
 
     /**
      * Check the average loudness of the audio specified by an AudioData field
@@ -52,9 +53,9 @@ public class AudioOperators {
      * @param threshold the loudness threshold
      * @return the function
      */
-    /*public static Function<Item, Boolean> checkLoudness(String audioDataField, String operator, Double threshold) {
-        return new CheckLoudness(audioDataField, operator, threshold);
-    }*/
+//    public static Function<Item, Boolean> checkLoudness(String audioDataField, String operator, Double threshold) {
+//        return new CheckLoudness(audioDataField, operator, threshold);
+//    }
 
     /**
      * Check the maximum loudness of the audio specified by an AudioData field
@@ -64,9 +65,9 @@ public class AudioOperators {
      * @param threshold the loudness threshold
      * @return the function
      */
-    /*public static Function<Item, Boolean> checkMaxLoudness(String audioDataField, Double threshold) {
-        return new CheckMaxLoudness(audioDataField, threshold);
-    }*/
+//    public static Function<Item, Boolean> checkMaxLoudness(String audioDataField, Double threshold) {
+//        return new CheckMaxLoudness(audioDataField, threshold);
+//    }
 
     /**
      * Check the max amplitude of the audio specified by an AudioData field
@@ -76,9 +77,9 @@ public class AudioOperators {
      * @param threshold the amplitude threshold
      * @return the function
      */
-    /*public static Function<Item, Boolean> checkAmplitude(String audioDataField, Double threshold) {
-        return new CheckAmplitude(audioDataField, threshold);
-    }*/
+//    public static Function<Item, Boolean> checkAmplitude(String audioDataField, Double threshold) {
+//        return new CheckAmplitude(audioDataField, threshold);
+//    }
 
     /**
      * Get the max amplitude of the audio specified by an AudioData field.

@@ -14,16 +14,19 @@ import io.github.privacysecurer.core.exceptions.PSException;
 import io.github.privacysecurer.core.purposes.Purpose;
 import io.github.privacysecurer.image.Image;
 import io.github.privacysecurer.image.ImageOperators;
+import io.github.privacysecurer.utils.Consts;
+
+import static io.github.privacysecurer.utils.Assertions.notNull;
 
 /**
  * Image related events, used for setting event parameters and providing processing methods.
  */
-public class ImageEvent extends EventType {
+public class ImageEvent<TValue> extends EventType {
 
     // Field name options
-    public static final String MediaLibrary = "mediaLibrary";
-    public static final String FileOrFolder = "fileOrFolder";
-    public static final String Images = "images";
+//    public static final String MediaLibrary = "mediaLibrary";
+//    public static final String FileOrFolder = "fileOrFolder";
+//    public static final String Images = "images";
 
     // Operator options
     public static final String UPDATED = "updated";
@@ -45,6 +48,10 @@ public class ImageEvent extends EventType {
      */
     private String fieldName;
     /**
+     * The field value calculation function.
+     */
+    private Function<Item, TValue> fieldCalculationFunction;
+    /**
      * The operator on the field value.
      */
     private String comparator;
@@ -65,7 +72,8 @@ public class ImageEvent extends EventType {
     private Context context;
     ImagesObserver imagesObserver = new ImagesObserver(new Handler());
     // Save FileObserver instance to a field otherwise it will be garbage collected.
-    static FilesObserver filesObserver;
+//    static FilesObserver filesObserver;
+    FilesObserver filesObserver;
 
     @Override
     public void setEventType(String eventType) {
@@ -78,8 +86,9 @@ public class ImageEvent extends EventType {
     }
 
     @Override
-    public void setFieldName(String fieldName) {
+    public <T> void setField(String fieldName, Function<Item, T> fieldCalculationFunction) {
         this.fieldName = fieldName;
+        this.fieldCalculationFunction = (Function<Item, TValue>) fieldCalculationFunction;
     }
 
     @Override
@@ -280,35 +289,26 @@ public class ImageEvent extends EventType {
         Boolean booleanFlag = null;
         this.context = context;
         ImageCallbackData imageCallbackData = new ImageCallbackData();
-
-        // Judge event type
-        switch (fieldName) {
-            case MediaLibrary:
-                this.setEventType(EventType.Image_Content_Updated);
-                break;
-            case FileOrFolder:
-                this.setEventType(EventType.Image_File_Updated);
-                break;
-            case Images:
-                this.setEventType(EventType.Image_Has_Face);
-                break;
-            default:
-                Log.d("Log", "No matchable event type, please check it again.");
-        }
         imageCallbackData.setEventType(eventType);
 
         switch (eventType) {
             case EventType.Image_Content_Updated:
                 periodicEvent = true;
+
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 context.getContentResolver().registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,true, imagesObserver);
                 break;
 
             case EventType.Image_Has_Face:
                 periodicEvent = false;
+
                 if (path.isEmpty())
-                    Log.d("Log", "Path doesn't exist.");
+                    Log.d(Consts.LIB_TAG, "Path doesn't exist.");
                 else
-                    Log.d("Log", path+" is being analyzed...");
+                    Log.d(Consts.LIB_TAG, path+" is being analyzed...");
 
                 try {
                     booleanFlag = uqi.getData(Image.getFromStorage(), Purpose.UTILITY("Listen to detecting faces."))
@@ -320,28 +320,34 @@ public class ImageEvent extends EventType {
                 }
                 if (booleanFlag != null) {
                     if (booleanFlag) {
-                        Log.d("Log", "Detect faces in the image.");
+                        Log.d(Consts.LIB_TAG, "Detect faces in the image.");
                         setSatisfyCond();
                     } else {
-                        Log.d("Log", "Detect no faces in the image.");
+                        Log.d(Consts.LIB_TAG, "Detect no faces in the image.");
                     }
                 } else {
-                    Log.d("Log", "Please check internal storage, nothing detected.");
+                    Log.d(Consts.LIB_TAG, "Please check internal storage, nothing detected.");
                 }
                 break;
 
             case Image_File_Updated:
                 periodicEvent = true;
+
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (path == null) Log.d(Consts.LIB_TAG, "You haven't set file or folder path yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 if (path.isEmpty())
-                    Log.d("Log", "Path doesn't exist.");
+                    Log.d(Consts.LIB_TAG, "Path doesn't exist.");
                 else
-                    Log.d("Log", path+" is being monitored...");
+                    Log.d(Consts.LIB_TAG, path+" is being monitored...");
                 filesObserver = new FilesObserver(path);
                 filesObserver.startWatching();
                 break;
 
             default:
-                Log.d("Log", "No image event matches your input, please check it.");
+                Log.d(Consts.LIB_TAG, "No image event matches your input, please check it.");
         }
 
     }
@@ -349,9 +355,11 @@ public class ImageEvent extends EventType {
     /**
      * Builder pattern used to construct image related events.
      */
-    public static class ImageEventBuilder {
+    public static class ImageEventBuilder<TValue> {
         private String eventDescription;
         private String fieldName;
+        private Function<Item, TValue> fieldCalculationFunction;
+        private String functionName;
         private String comparator;
         private String path;
         private Integer recurrence;
@@ -361,8 +369,10 @@ public class ImageEvent extends EventType {
             return this;
         }
 
-        public ImageEventBuilder setFieldName(String fieldName) {
+        public <Tout> ImageEventBuilder setField(String fieldName, Function<Item, Tout> fieldCalculationFunction) {
             this.fieldName = fieldName;
+            this.fieldCalculationFunction = (Function<Item, TValue>) notNull("fieldCalculationFunction", fieldCalculationFunction);
+            this.functionName = fieldCalculationFunction.getClass().getSimpleName();
             return this;
         }
 
@@ -385,7 +395,7 @@ public class ImageEvent extends EventType {
             ImageEvent imageEvent = new ImageEvent();
 
             if (fieldName != null) {
-                imageEvent.setFieldName(fieldName);
+                imageEvent.setField(fieldName, fieldCalculationFunction);
             }
 
             if (comparator != null) {
@@ -398,6 +408,18 @@ public class ImageEvent extends EventType {
 
             if (recurrence != null) {
                 imageEvent.setMaxNumberOfRecurrences(recurrence);
+            }
+
+            // Judge event type
+            switch (functionName) {
+                case "ImageDataGetter":
+                    if (path != null)
+                        imageEvent.setEventType(EventType.Image_File_Updated);
+                    else
+                        imageEvent.setEventType(EventType.Image_Content_Updated);
+                    break;
+                default:
+                    Log.d(Consts.LIB_TAG, "No matchable event type, please check it again.");
             }
 
             return imageEvent;
@@ -418,10 +440,10 @@ public class ImageEvent extends EventType {
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
             if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
+                //Log.d(Consts.LIB_TAG, "No notification will be returned, the monitoring thread has been stopped.");
                 context.getContentResolver().unregisterContentObserver(imagesObserver);
             } else {
-                Log.d("Log","Image content are changed.");
+                Log.d(Consts.LIB_TAG,"Image content are changed.");
                 setSatisfyCond();
             }
         }
@@ -445,20 +467,20 @@ public class ImageEvent extends EventType {
                 filesObserver.stopWatching();
             } else {
                 if (event == FileObserver.DELETE) {
-                    Log.d("Log", "A file was deleted from the monitored directory.");
+                    Log.d(Consts.LIB_TAG, "A file was deleted from the monitored directory.");
                 }
                 if (event == FileObserver.MODIFY) {
-                    Log.d("Log", "Data was written to a file.");
+                    Log.d(Consts.LIB_TAG, "Data was written to a file.");
                 }
                 if (event == FileObserver.CREATE) {
-                    Log.d("Log", "A new file or subdirectory was created under the monitored directory.");
+                    Log.d(Consts.LIB_TAG, "A new file or subdirectory was created under the monitored directory.");
                 }
                 // A file or subdirectory was moved from the monitored directory
                 if (event == FileObserver.MOVED_FROM) {
-                    Log.d("Log", "A file or subdirectory was moved from the monitored directory.");
+                    Log.d(Consts.LIB_TAG, "A file or subdirectory was moved from the monitored directory.");
                 }
                 if (event == FileObserver.ACCESS) {
-                    Log.d("Log", "Data was read from a file.");
+                    Log.d(Consts.LIB_TAG, "Data was read from a file.");
                 }
                 setSatisfyCond();
             }

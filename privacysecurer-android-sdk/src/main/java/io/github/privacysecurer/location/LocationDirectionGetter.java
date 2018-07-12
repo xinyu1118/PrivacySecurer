@@ -2,11 +2,11 @@ package io.github.privacysecurer.location;
 
 
 /**
- * Obtain the current direction using bearing.
+ * Judge the travel direction using bearing field.
  */
-public class LocationDirectionPredicate extends BearingProcessor<String> {
+public class LocationDirectionGetter extends BearingProcessor<String> {
 
-    LocationDirectionPredicate(String bearingField) {
+    LocationDirectionGetter(String bearingField) {
         super(bearingField);
     }
 

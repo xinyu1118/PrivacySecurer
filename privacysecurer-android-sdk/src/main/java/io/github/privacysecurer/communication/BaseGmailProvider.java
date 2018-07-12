@@ -1,5 +1,6 @@
 package io.github.privacysecurer.communication;
 
+
 import android.Manifest;
 import android.content.Intent;
 import android.os.AsyncTask;
@@ -29,11 +30,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-
 /**
  * Base class for Gmail-related Providers.
  */
-
 abstract class BaseGmailProvider extends PStreamProvider implements GmailResultListener {
     static final String PREF_ACCOUNT_NAME = "accountName";
     static final String[] SCOPES = {GmailScopes.GMAIL_LABELS, GmailScopes.GMAIL_READONLY};

@@ -9,18 +9,22 @@ import android.util.Log;
 
 import java.util.List;
 
+import io.github.privacysecurer.communication.Call;
 import io.github.privacysecurer.communication.Message;
 import io.github.privacysecurer.core.purposes.Purpose;
+import io.github.privacysecurer.utils.Consts;
+
+import static io.github.privacysecurer.utils.Assertions.notNull;
 
 /**
  * Message related events, used for setting event parameters and providing processing methods.
  */
-public class MessageEvent extends EventType {
+public class MessageEvent<TValue> extends EventType {
 
     // Field name options
-    public static final String Messages = "messages";
-    public static final String Sender = "sender";
-    public static final String MessageLists = "messageLists";
+//    public static final String Messages = "messages";
+//    public static final String Sender = "sender";
+//    public static final String MessageLists = "messageLists";
 
     // Operator options
     public static final String IN = "in";
@@ -42,6 +46,10 @@ public class MessageEvent extends EventType {
      * The field name of personal data.
      */
     private String fieldName;
+    /**
+     * The field value calculation function.
+     */
+    private Function<Item, TValue> fieldCalculationFunction;
     /**
      * The operator on the field value.
      */
@@ -78,8 +86,9 @@ public class MessageEvent extends EventType {
     }
 
     @Override
-    public void setFieldName(String fieldName) {
+    public <T> void setField(String fieldName, Function<Item, T> fieldCalculationFunction) {
         this.fieldName = fieldName;
+        this.fieldCalculationFunction = (Function<Item, TValue>) fieldCalculationFunction;
     }
 
     @Override
@@ -282,44 +291,36 @@ public class MessageEvent extends EventType {
         //List<Boolean> list = new ArrayList<>();
         this.context = context;
         final MessageCallbackData messageCallbackData = new MessageCallbackData();
-
-        // Judge event type
-        switch (fieldName) {
-            case Messages:
-                this.setEventType(EventType.Message_Coming_In);
-                break;
-            case Sender:
-                if (comparator == EQ)
-                    this.setEventType(EventType.Message_Check_Unwanted);
-                if (comparator == IN)
-                    this.setEventType(EventType.Message_In_List);
-                break;
-            case MessageLists:
-                this.setEventType(EventType.Message_Lists_Updated);
-                break;
-            default:
-                Log.d("Log", "No matchable event type, please check it again.");
-        }
         messageCallbackData.setEventType(eventType);
 
         switch (eventType) {
             case EventType.Message_Check_Unwanted:
                 periodicEvent = true;
 
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (caller == null) Log.d(Consts.LIB_TAG, "You haven't set sender phone number yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 final PStreamProvider pStreamProvider = Message.asIncomingSMS();
-                uqi.getData(pStreamProvider, Purpose.UTILITY("Listen to incoming unwanted messages."))
-                        .filter(Message.TYPE, Message.TYPE_RECEIVED)
-                        .filter(Message.CONTACT, caller)
-                        .ifPresent(Message.CONTENT, new Callback<String>() {
+                uqi.getData(pStreamProvider, Purpose.UTILITY("Monitor message senders."))
+                        .setField(fieldName, fieldCalculationFunction)
+                        .forEach(fieldName, new Callback<String>() {
+
                             @Override
                             protected void onInput(String input) {
-                                counter++;
-                                satisfyCond = false;
-                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                    pStreamProvider.isCancelled = true;
+                                if (input.equals(caller)) {
+                                    counter++;
+                                    satisfyCond = false;
+                                    if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                        pStreamProvider.isCancelled = true;
+                                    } else {
+                                        Log.d(Consts.LIB_TAG, "The message sender is from a given phone number.");
+                                        setSatisfyCond();
+                                    }
                                 } else {
-                                    Log.d("Log", "Unwanted incoming messages.");
-                                    setSatisfyCond();
+                                    Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+                                    satisfyCond = false;
                                 }
                             }
                         });
@@ -327,31 +328,44 @@ public class MessageEvent extends EventType {
 
             case EventType.Message_Lists_Updated:
                 periodicEvent = true;
+
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 context.getContentResolver().registerContentObserver(Uri.parse("content://sms"),true, messagesObserver);
                 break;
 
             case EventType.Message_In_List:
                 periodicEvent = true;
 
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (lists == null) Log.d(Consts.LIB_TAG, "You haven't set the list yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 final PStreamProvider pStreamProvider1 = Message.asIncomingSMS();
-                uqi.getData(pStreamProvider1, Purpose.UTILITY("Listen to incoming messages from the blacklist."))
-                        .filterList(Message.CONTACT, lists)
-                        .ifPresent(Message.CONTACT, new Callback<String>() {
+                uqi.getData(pStreamProvider1, Purpose.UTILITY("Monitor message senders."))
+                        .setField(fieldName, fieldCalculationFunction)
+                        .forEach(fieldName, new Callback<String>() {
+
                             @Override
                             protected void onInput(String input) {
-
-                                counter++;
-                                satisfyCond = false;
-                                if (recurrence != null && counter > recurrence) {
-                                    //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
-                                    pStreamProvider1.isCancelled = true;
-                                } else {
-                                    Log.d("Log", "Incoming message in the blacklist.");
-                                    messageCallbackData.setCaller(input);
-                                    eventCallback.setMessageCallbackData(messageCallbackData);
-                                    setSatisfyCond();
+                                for (String list : lists) {
+                                    if (input.equals(list)) {
+                                        counter++;
+                                        satisfyCond = false;
+                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                            pStreamProvider1.isCancelled = true;
+                                        } else {
+                                            Log.d(Consts.LIB_TAG, "The message sender is in a given list.");
+                                            messageCallbackData.setCaller(input);
+                                            eventCallback.setMessageCallbackData(messageCallbackData);
+                                            setSatisfyCond();
+                                        }
+                                        break;
+                                    }
                                 }
-
                             }
                         });
                 break;
@@ -384,7 +398,7 @@ public class MessageEvent extends EventType {
                                     if (recurrence != null && counter > recurrence) {
                                         pStreamProvider2.isCancelled = true;
                                     } else {
-                                        Log.d("Log", "Incoming message from contact lists.");
+                                        Log.d(Consts.LIB_TAG, "Incoming message from contact lists.");
                                         psCallback.setCaller(input);
                                         setSatisfyCond();
                                     }
@@ -399,18 +413,23 @@ public class MessageEvent extends EventType {
             case EventType.Message_Coming_In:
                 periodicEvent = true;
 
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 final PStreamProvider pStreamProvider3 = Message.asIncomingSMS();
                 uqi.getData(pStreamProvider3, Purpose.UTILITY("Listen to new messages."))
-                        .ifPresent(Message.CONTACT, new Callback<String>() {
+                        .setField(fieldName, fieldCalculationFunction)
+                        .ifPresent(fieldName, new Callback<String>() {
                             @Override
                             protected void onInput(String input) {
                                 counter++;
                                 satisfyCond = false;
-                                if (recurrence != null && counter > recurrence) {
-                                    //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
+                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                    //Log.d(Consts.LIB_TAG, "No notification will be returned, the monitoring thread has been stopped.");
                                     pStreamProvider3.isCancelled = true;
                                 } else {
-                                    Log.d("Log", "New messages arrive.");
+                                    Log.d(Consts.LIB_TAG, "New message arrives.");
                                     messageCallbackData.setCaller(input);
                                     eventCallback.setMessageCallbackData(messageCallbackData);
                                     setSatisfyCond();
@@ -420,7 +439,7 @@ public class MessageEvent extends EventType {
                 break;
 
             default:
-                Log.d("Log", "No message event matches your input, please check it.");
+                Log.d(Consts.LIB_TAG, "No message event matches your input, please check it.");
         }
 
     }
@@ -428,9 +447,11 @@ public class MessageEvent extends EventType {
     /**
      * Builder pattern used to construct message related events.
      */
-    public static class MessageEventBuilder {
+    public static class MessageEventBuilder<TValue> {
         private String eventDescription;
         private String fieldName;
+        private Function<Item, TValue> fieldCalculationFunction;
+        private String functionName;
         private String comparator;
         private String caller;
         private List<String> lists;
@@ -441,8 +462,10 @@ public class MessageEvent extends EventType {
             return this;
         }
 
-        public MessageEventBuilder setFieldName(String fieldName) {
+        public <Tout> MessageEventBuilder setField(String fieldName, Function<Item, Tout> fieldCalculationFunction) {
             this.fieldName = fieldName;
+            this.fieldCalculationFunction = (Function<Item, TValue>) notNull("fieldCalculationFunction", fieldCalculationFunction);
+            this.functionName = fieldCalculationFunction.getClass().getSimpleName();
             return this;
         }
 
@@ -470,7 +493,7 @@ public class MessageEvent extends EventType {
             MessageEvent messageEvent = new MessageEvent();
 
             if (fieldName != null) {
-                messageEvent.setFieldName(fieldName);
+                messageEvent.setField(fieldName, fieldCalculationFunction);
             }
 
             if (comparator != null) {
@@ -487,6 +510,20 @@ public class MessageEvent extends EventType {
 
             if (recurrence != null) {
                 messageEvent.setMaxNumberOfRecurrences(recurrence);
+            }
+
+            // Judge event type
+            switch (functionName) {
+                case "MessagePhoneGetter":
+                    if (comparator.equals(EQ)) messageEvent.setEventType(EventType.Message_Check_Unwanted);
+                    if (comparator.equals(IN)) messageEvent.setEventType(EventType.Message_In_List);
+                    if (comparator.equals(UPDATED)) messageEvent.setEventType(EventType.Message_Coming_In);
+                    break;
+                case "MessageContentGetter":
+                    messageEvent.setEventType(EventType.Message_Lists_Updated);
+                    break;
+                default:
+                    Log.d(Consts.LIB_TAG, "No matchable event type, please check it again.");
             }
 
             return messageEvent;
@@ -507,10 +544,10 @@ public class MessageEvent extends EventType {
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
             if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
+                //Log.d(Consts.LIB_TAG, "No notification will be returned, the monitoring thread has been stopped.");
                 context.getContentResolver().unregisterContentObserver(messagesObserver);
             } else {
-                Log.d("Log","Messages are changed.");
+                Log.d(Consts.LIB_TAG,"Message content are updated.");
                 setSatisfyCond();
             }
         }

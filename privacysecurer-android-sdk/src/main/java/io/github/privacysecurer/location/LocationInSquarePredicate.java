@@ -1,9 +1,9 @@
 package io.github.privacysecurer.location;
 
+
 /**
  * Check whether a location is in a square region.
  */
-
 class LocationInSquarePredicate extends LocationProcessor<Boolean> {
     private final double minLat;
     private final double minLng;

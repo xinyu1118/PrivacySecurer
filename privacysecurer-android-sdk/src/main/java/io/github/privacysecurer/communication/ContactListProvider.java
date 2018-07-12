@@ -1,5 +1,6 @@
 package io.github.privacysecurer.communication;
 
+
 import android.Manifest;
 import android.content.ContentResolver;
 import android.database.Cursor;
@@ -16,7 +17,6 @@ import java.util.List;
 /**
  * Provide a stream of contact list.
  */
-
 class ContactListProvider extends PStreamProvider {
 
     ContactListProvider() {

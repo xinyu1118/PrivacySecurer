@@ -1,5 +1,6 @@
 package io.github.privacysecurer.communication;
 
+
 import android.os.Bundle;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
@@ -20,7 +21,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 
 /**
  * Provide a live stream of messages in IM (instant messaging) apps.

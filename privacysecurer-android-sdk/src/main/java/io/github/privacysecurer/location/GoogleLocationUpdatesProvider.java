@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import android.Manifest;
 import android.location.Location;
 import android.os.Bundle;
@@ -15,7 +16,6 @@ import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
-
 
 /**
  * Provide location updates with Google API.

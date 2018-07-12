@@ -9,8 +9,12 @@ import java.util.List;
 
 import io.github.privacysecurer.audio.Audio;
 import io.github.privacysecurer.audio.AudioOperators;
-import io.github.privacysecurer.communication.Call;
 
+import io.github.privacysecurer.communication.Call;
+import io.github.privacysecurer.communication.CallOperators;
+import io.github.privacysecurer.communication.Contact;
+import io.github.privacysecurer.communication.ContactOperators;
+import io.github.privacysecurer.communication.MessageOperators;
 import io.github.privacysecurer.core.AudioCallback;
 import io.github.privacysecurer.core.AudioCallbackData;
 import io.github.privacysecurer.core.AudioEvent;
@@ -18,8 +22,6 @@ import io.github.privacysecurer.core.AudioEvent;
 import io.github.privacysecurer.core.ContactCallback;
 import io.github.privacysecurer.core.ContactCallbackData;
 import io.github.privacysecurer.core.ContactEvent;
-import io.github.privacysecurer.core.EventCollection;
-import io.github.privacysecurer.core.EventCollectionCallback;
 import io.github.privacysecurer.core.EventType;
 
 import io.github.privacysecurer.core.GeolocationCallback;
@@ -28,14 +30,18 @@ import io.github.privacysecurer.core.GeolocationEvent;
 import io.github.privacysecurer.core.ImageCallback;
 import io.github.privacysecurer.core.ImageCallbackData;
 import io.github.privacysecurer.core.ImageEvent;
-import io.github.privacysecurer.core.Item;
 
 import io.github.privacysecurer.core.MessageCallback;
 import io.github.privacysecurer.core.MessageCallbackData;
 import io.github.privacysecurer.core.MessageEvent;
 import io.github.privacysecurer.core.UQI;
+import io.github.privacysecurer.core.purposes.Purpose;
+import io.github.privacysecurer.image.ImageData;
+import io.github.privacysecurer.image.ImageOperators;
 import io.github.privacysecurer.location.Geolocation;
+import io.github.privacysecurer.location.GeolocationOperators;
 import io.github.privacysecurer.location.LatLon;
+import io.github.privacysecurer.utils.Consts;
 
 /**
  * Some examples of PrivacyStreams Event for personal data accessing and processing.
@@ -50,8 +56,8 @@ public class Examples {
     public void AvgLoudnessMonitorEvent() {
         // request android.permission.RECORD_AUDIO
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
-                .setEventDescription("AvgLoudness")
-                .setFieldName(AudioEvent.AvgLoudness)
+                .setEventDescription("checking AvgLoudness")
+                .setField("avgloudness", AudioOperators.calcAvgLoudness(Audio.AUDIO_DATA))
                 .setComparator(AudioEvent.GTE)
                 .setThreshold(30.0)
                 .setDuration(1000)
@@ -61,13 +67,12 @@ public class Examples {
                 .addOptimizationConstraints(50, 15, 10000)
                 .addOptimizationConstraints(15, 0, EventType.Off)
                 .build();
-
         uqi.addEventListener(audioEvent, new AudioCallback() {
             @Override
             public void onEvent(AudioCallbackData audioCallbackData) {
-                Log.d("Log", String.valueOf(audioCallbackData.avgLoudness));
-                //Log.d("Log", String.valueOf(audioCallbackData.TIME_CREATED));
-                //Log.d("Log", String.valueOf(audioCallbackData.EVENT_TYPE));
+                Log.d(Consts.LIB_TAG, String.valueOf(audioCallbackData.fieldValue));
+//                Log.d(Consts.LIB_TAG, String.valueOf(audioCallbackData.TIME_CREATED));
+//                Log.d(Consts.LIB_TAG, String.valueOf(audioCallbackData.EVENT_TYPE));
             }
         });
     }
@@ -75,50 +80,31 @@ public class Examples {
     public void MaxLoudnessMonitorEvent() {
         // request android.permission.RECORD_AUDIO
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
-                                .setFieldName(AudioEvent.MaxLoudness)
-                                .setComparator(AudioEvent.GTE)
+                                .setField("maxLoudness", AudioOperators.calcMaxLoudness(Audio.AUDIO_DATA))
+                                .setComparator(AudioEvent.LTE)
                                 .setThreshold(50.0)
                                 .setDuration(1000)
-                                .setInterval(3000)
-                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
+                                .setMaxNumberOfRecurrences(1)
                                 .build();
         uqi.addEventListener(audioEvent, new AudioCallback() {
             @Override
             public void onEvent(AudioCallbackData audioCallbackData) {
-                Log.d("Log", String.valueOf(audioCallbackData.maxLoudness));
+                Log.d(Consts.LIB_TAG, String.valueOf(audioCallbackData.fieldValue));
             }
         });
-    }
-
-    public void UserDefinedEvent(){
-        EventType audioEvent = new AudioEvent.AudioEventBuilder()
-                                .setFieldName("minLoudness", AudioOperators.customizedFunctions(Audio.AUDIO_DATA))
-                                .setComparator(AudioEvent.LTE)
-                                .setThreshold(30.0)
-                                .setDuration(1000)
-                                .setInterval(3000)
-                                .build();
-        uqi.addEventListener(audioEvent, new AudioCallback() {
-            @Override
-            public void onEvent(AudioCallbackData audioCallbackData) {
-                Log.d("Log", String.valueOf(audioCallbackData.customizedField));
-                Log.d("Log", audioCallbackData.EVENT_TYPE);
-            }
-        });
-
     }
 
     public void geoFenceEvent() {
         // to get the local latitude, longitude, speed, bearing etc.
-        //uqi.getData(Geolocation.asUpdates(3000, Geolocation.LEVEL_EXACT), Purpose.UTILITY("test"))
-        //        .debug();
+//        uqi.getData(Geolocation.asUpdates(3000, Geolocation.LEVEL_EXACT), Purpose.UTILITY("test"))
+//               .debug();
 
         // request android.permission.ACCESS_FINE_LOCATION or android.permission.ACCESS_COARSE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-                                .setFieldName(GeolocationEvent.LatLon)
+                                .setField("location", GeolocationOperators.getLatLon())
                                 .setComparator(GeolocationEvent.CROSSES)
-                                .setLatitude(40.443285)
-                                .setLongitude(-79.945502)
+                                .setLatitude(40.436839)
+                                .setLongitude(-79.951097)
                                 .setRadius(20.0)
                                 .setInterval(3000)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
@@ -129,31 +115,32 @@ public class Examples {
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
             @Override
             public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-                Log.d("Log", String.valueOf(geolocationCallbackData.number));
-                //Log.d("Log", String.valueOf(geolocationCallbackData.currentTime));
+                //Log.d(Consts.LIB_TAG, String.valueOf(geolocationCallbackData.currentTime));
+                Log.d(Consts.LIB_TAG, String.valueOf(geolocationCallbackData.number));
             }
         });
     }
 
     public void placeCheckingEvent() {
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-                                .setFieldName(GeolocationEvent.LatLon)
+                                .setField("location", GeolocationOperators.getLatLon())
                                 .setComparator(GeolocationEvent.IN)
-                                .setPlaceName("Newell Simon Hall")
-                                .setInterval(3000)
-                                .setMaxNumberOfRecurrences(3)
+                                .setPlaceName("23 Oakland Square")
+                                .setRadius(100.0)
+                                //.setInterval(3000)
+                                .setMaxNumberOfRecurrences(1)
                                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
             @Override
             public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-                Log.d("Log", String.valueOf(geolocationCallbackData.currentTime));
+                Log.d(Consts.LIB_TAG, String.valueOf(geolocationCallbackData.currentTime));
             }
         });
     }
 
     public void locationUpdatesEvent() {
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-                .setFieldName(GeolocationEvent.LatLon)
+                .setField("location", GeolocationOperators.getLatLon())
                 .setComparator(GeolocationEvent.UPDATED)
                 .setInterval(3000)
                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
@@ -165,7 +152,7 @@ public class Examples {
             @Override
             public void onEvent(GeolocationCallbackData geolocationCallbackData) {
                 LatLon latLon = geolocationCallbackData.latLon;
-                Log.d("Log", String.valueOf(latLon.getLatitude()) + ", " + String.valueOf(latLon.getLongitude()));
+                Log.d(Consts.LIB_TAG, String.valueOf(latLon.getLatitude()) + ", " + String.valueOf(latLon.getLongitude()));
             }
         });
     }
@@ -173,7 +160,7 @@ public class Examples {
     public void overspeedEvent() {
         // request android.permission.ACCESS_FINE_LOCATION required or android.permission.ACCESS_COARSE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-                .setFieldName(GeolocationEvent.Speed)
+                .setField("speed", GeolocationOperators.calcSpeed())
                 .setComparator(GeolocationEvent.GTE)
                 .setThreshold(0.1)
                 .setInterval(3000)
@@ -183,7 +170,7 @@ public class Examples {
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
             @Override
             public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-                Log.d("Log", String.valueOf(geolocationCallbackData.speed));
+                Log.d(Consts.LIB_TAG, String.valueOf(geolocationCallbackData.speed));
             }
         });
     }
@@ -191,7 +178,7 @@ public class Examples {
     public void cityUpdatesEvents() {
         // request android.permission.ACCESS_COARSE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-                                .setFieldName(GeolocationEvent.City)
+                                .setField("city", GeolocationOperators.getCity(Geolocation.LAT_LON))
                                 .setComparator(GeolocationEvent.UPDATED)
                                 .setInterval(3000)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
@@ -199,7 +186,7 @@ public class Examples {
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
             @Override
             public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-                Log.d("Log", geolocationCallbackData.city);
+                Log.d(Consts.LIB_TAG, geolocationCallbackData.city);
             }
         });
     }
@@ -207,7 +194,7 @@ public class Examples {
     public void postcodeUpdatesEvent() {
         // request android.permission.ACCESS_COARSE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-                                .setFieldName(GeolocationEvent.Postcode)
+                                .setField("postcode", GeolocationOperators.getPostcode(Geolocation.LAT_LON))
                                 .setComparator(GeolocationEvent.UPDATED)
                                 .setInterval(3000)
                                 .setLocationPrecision(Geolocation.LEVEL_BUILDING)
@@ -216,26 +203,7 @@ public class Examples {
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
             @Override
             public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-                Log.d("Log", geolocationCallbackData.postcode);
-            }
-        });
-    }
-
-    public void distanceCalculatingEvent() {
-        // request android.permission.ACCESS_FINE_LOCATION
-        EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-                                .setFieldName(GeolocationEvent.Distance)
-                                .setComparator(GeolocationEvent.LTE)
-                                .setLatitude(40.443277)
-                                .setLongitude(-79.945534)
-                                .setInterval(3000)
-                                .setLocationPrecision(Geolocation.LEVEL_EXACT)
-                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
-                                .build();
-        uqi.addEventListener(locationEvent, new GeolocationCallback() {
-            @Override
-            public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-                Log.d("Log", String.valueOf(geolocationCallbackData.distance));
+                Log.d(Consts.LIB_TAG, geolocationCallbackData.postcode);
             }
         });
     }
@@ -243,7 +211,7 @@ public class Examples {
     public void directionUpdatesEvent() {
         // request android.permission.ACCESS_FINE_LOCATION
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-                                .setFieldName(GeolocationEvent.Direction)
+                                .setField("direction", GeolocationOperators.getDirection())
                                 .setComparator(GeolocationEvent.UPDATED)
                                 .setInterval(3000)
                                 .setLocationPrecision(Geolocation.LEVEL_EXACT)
@@ -252,7 +220,27 @@ public class Examples {
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
             @Override
             public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-                Log.d("Log", geolocationCallbackData.direction);
+                Log.d(Consts.LIB_TAG, geolocationCallbackData.direction);
+            }
+        });
+    }
+
+    public void distanceCalculatingEvent() {
+        // request android.permission.ACCESS_FINE_LOCATION
+        EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
+                                .setField("distanceTo", GeolocationOperators.distanceTo(Geolocation.LAT_LON) )
+                                .setLatitude(40.443277)
+                                .setLongitude(-79.945534)
+                                .setComparator(GeolocationEvent.LTE)
+                                .setThreshold(20.0)
+                                .setInterval(3000)
+                                .setLocationPrecision(Geolocation.LEVEL_EXACT)
+                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
+                                .build();
+        uqi.addEventListener(locationEvent, new GeolocationCallback() {
+            @Override
+            public void onEvent(GeolocationCallbackData geolocationCallbackData) {
+                Log.d(Consts.LIB_TAG, String.valueOf(geolocationCallbackData.distance));
             }
         });
     }
@@ -260,84 +248,83 @@ public class Examples {
     public void callBlockerEvent() {
         // request android.permission.READ_PHONE_STATE, android.permission.PROCESS_OUTGOING_CALLS
         EventType callEvent = new ContactEvent.ContactEventBuilder()
-                .setFieldName(ContactEvent.Caller)
+                .setField("caller", CallOperators.callerIdentification())
                 .setComparator(ContactEvent.EQ)
                 .setCaller("8618515610518")
-                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
-                //.setCaller("15555215556")
+                .setMaxNumberOfRecurrences(3)
                 .build();
         uqi.addEventListener(callEvent, new ContactCallback() {
             @Override
             public void onEvent(ContactCallbackData contactCallbackData) {
-
             }
         });
     }
 
-    public void callLogsCheckingEvent() {
-        // request android.permission.READ_CALL_LOG
-        EventType callEvent = new ContactEvent.ContactEventBuilder()
-                            .setFieldName(ContactEvent.Logs)
-                            .setComparator(ContactEvent.EQ)
-                            .setCaller("8618515610518")
-                            .setMaxNumberOfRecurrences(1)
-                            .build();
-        uqi.addEventListener(callEvent, new ContactCallback() {
-            @Override
-            public void onEvent(ContactCallbackData contactCallbackData) {
-                List<Item> items = contactCallbackData.callRecords;
-                for (Item item : items) {
-                    Log.d("Log", "Contact: "+item.getAsString(Call.CONTACT)+", Timestamp: "+String.valueOf(item.getAsLong(Call.TIMESTAMP))
-                            +", Duration: "+String.valueOf(item.getAsLong(Call.DURATION))+", Type: "+item.getAsString(Call.TYPE));
-                }
-            }
-        });
-    }
+//    public void callLogsCheckingEvent() {
+//        // request android.permission.READ_CALL_LOG
+//        EventType callEvent = new ContactEvent.ContactEventBuilder()
+//                            .setFieldName(ContactEvent.Logs)
+//                            .setComparator(ContactEvent.EQ)
+//                            .setCaller("8618515610518")
+//                            .setMaxNumberOfRecurrences(1)
+//                            .build();
+//        uqi.addEventListener(callEvent, new ContactCallback() {
+//            @Override
+//            public void onEvent(ContactCallbackData contactCallbackData) {
+//                List<Item> items = contactCallbackData.callRecords;
+//                for (Item item : items) {
+//                    Log.d(Consts.LIB_TAG, "Contact: "+item.getAsString(Call.CONTACT)+", Timestamp: "+String.valueOf(item.getAsLong(Call.TIMESTAMP))
+//                            +", Duration: "+String.valueOf(item.getAsLong(Call.DURATION))+", Type: "+item.getAsString(Call.TYPE));
+//                }
+//            }
+//        });
+//    }
 
     public void callInBlacklistEvent() {
         // request android.permission.READ_PHONE_STATE, android.permission.PROCESS_OUTGOING_CALLS
         List<String> blacklist = new ArrayList<>();
         blacklist.add("8618515610518");
         blacklist.add("14122909962");
+        blacklist.add("15555215556");
         EventType callEvent = new ContactEvent.ContactEventBuilder()
-                            .setFieldName(ContactEvent.Caller)
+                            .setField("caller", CallOperators.callerIdentification())
                             .setComparator(ContactEvent.IN)
-                            .setLists(blacklist) // runtime
+                            .setLists(blacklist)
                             .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                             .build();
         uqi.addEventListener(callEvent, new ContactCallback() {
             @Override
             public void onEvent(ContactCallbackData contactCallbackData) {
-                Log.d("Log", contactCallbackData.caller);
+                Log.d(Consts.LIB_TAG, contactCallbackData.caller);
             }
         });
     }
 
-    public void callInWhitelistEvent() {
-        // request android.permission.READ_PHONE_STATE, android.permission.PROCESS_OUTGOING_CALLS,
-        // android.permission.READ_CONTACTS
-        /*Event callEvent = new ContactEvent.ContactEventBuilder()
-                            .setEventType(UsageEvents.Event.Call_From_Contacts)
-                            .build();
-        uqi.addEventListener(callEvent, new ContactCallback() {
-            @Override
-            public void onEvent() {
-                Log.d("Log", this.getCaller());
-            }
-        });*/
-    }
+//    public void callInWhitelistEvent() {
+//        // request android.permission.READ_PHONE_STATE, android.permission.PROCESS_OUTGOING_CALLS,
+//        // android.permission.READ_CONTACTS
+//        /*Event callEvent = new ContactEvent.ContactEventBuilder()
+//                            .setEventType(UsageEvents.Event.Call_From_Contacts)
+//                            .build();
+//        uqi.addEventListener(callEvent, new ContactCallback() {
+//            @Override
+//            public void onEvent() {
+//                Log.d(Consts.LIB_TAG, this.getCaller());
+//            }
+//        });*/
+//    }
 
     public void newCallsEvent() {
         // request android.permission.READ_PHONE_STATE, android.permission.PROCESS_OUTGOING_CALLS
         EventType callEvent = new ContactEvent.ContactEventBuilder()
-                            .setFieldName(ContactEvent.Calls)
+                            .setField("calls", CallOperators.callerIdentification())
                             .setComparator(ContactEvent.UPDATED)
                             .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                             .build();
         uqi.addEventListener(callEvent, new ContactCallback() {
             @Override
             public void onEvent(ContactCallbackData contactCallbackData) {
-                Log.d("Log", contactCallbackData.caller);
+                Log.d(Consts.LIB_TAG, contactCallbackData.caller);
             }
         });
     }
@@ -345,7 +332,7 @@ public class Examples {
     public void contactsUpdatesEvent() {
         // request android.permission.READ_CONTACTS
         EventType contactEvent = new ContactEvent.ContactEventBuilder()
-                                .setFieldName(ContactEvent.Contacts)
+                                .setField("contacts", ContactOperators.getContactLists())
                                 .setComparator(ContactEvent.UPDATED)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
@@ -363,7 +350,7 @@ public class Examples {
         emailLists.add("yangxycl@163.com");
         emailLists.add("test@gmail.com");
         EventType contactEvent = new ContactEvent.ContactEventBuilder()
-                                .setFieldName(ContactEvent.Emails)
+                                .setField("emails", ContactOperators.getContactEmails())
                                 .setComparator(ContactEvent.IN)
                                 .setLists(emailLists)
                                 .setMaxNumberOfRecurrences(1)
@@ -374,7 +361,7 @@ public class Examples {
                 List<String> pendingEmails = contactCallbackData.emails;
                 if (pendingEmails != null) {
                     for (String email : pendingEmails) {
-                        Log.d("Log", email);
+                        Log.d(Consts.LIB_TAG, email);
                     }
                 }
             }
@@ -383,12 +370,13 @@ public class Examples {
 
     public void messageBlockerEvent() {
         // request android.permission.RECEIVE_SMS
+        // from phone 8618515610518 to 0014122909962
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
-                                .setFieldName(MessageEvent.Sender)
+                                .setField("sender", MessageOperators.getMessagePhones())
                                 .setComparator(MessageEvent.EQ)
                                 .setCaller("8618515610518")
-                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 //.setCaller("15555215556")
+                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(messageEvent, new MessageCallback() {
             @Override
@@ -401,9 +389,9 @@ public class Examples {
     public void messagesUpdatesEvent() {
         // request android.permission.READ_SMS
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
-                                .setFieldName(MessageEvent.MessageLists)
+                                .setField("messages", MessageOperators.getMessageContent())
                                 .setComparator(MessageEvent.UPDATED)
-                                .setMaxNumberOfRecurrences(1)
+                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(messageEvent, new MessageCallback() {
             @Override
@@ -417,9 +405,10 @@ public class Examples {
         // request android.permission.RECEIVE_SMS
         List<String> blacklist = new ArrayList<>();
         blacklist.add("8612345678901");
+        blacklist.add("8618515610518");
         blacklist.add("15555215556");
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
-                                .setFieldName(MessageEvent.Sender)
+                                .setField("sender", MessageOperators.getMessagePhones())
                                 .setComparator(MessageEvent.IN)
                                 .setLists(blacklist)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
@@ -427,7 +416,7 @@ public class Examples {
         uqi.addEventListener(messageEvent, new MessageCallback() {
             @Override
             public void onEvent(MessageCallbackData messageCallbackData) {
-                Log.d("Log", messageCallbackData.caller);
+                Log.d(Consts.LIB_TAG, messageCallbackData.caller);
             }
         });
     }
@@ -440,7 +429,7 @@ public class Examples {
         uqi.addEventListener(messageEvent, new MessageCallback() {
             @Override
             public void onEvent() {
-                Log.d("Log", this.getCaller());
+                Log.d(Consts.LIB_TAG, this.getCaller());
             }
         });*/
     }
@@ -448,14 +437,14 @@ public class Examples {
     public void newMessageEvent() {
         // request android.permission.RECEIVE_SMS
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
-                                .setFieldName(MessageEvent.Messages)
+                                .setField("sender", MessageOperators.getMessagePhones())
                                 .setComparator(MessageEvent.UPDATED)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(messageEvent, new MessageCallback() {
             @Override
             public void onEvent(MessageCallbackData messageCallbackData) {
-                Log.d("Log", messageCallbackData.caller);
+                Log.d(Consts.LIB_TAG, messageCallbackData.caller);
             }
         });
     }
@@ -463,7 +452,7 @@ public class Examples {
     public void mediaUpdatesEvent() {
         // request android.permission.READ_EXTERNAL_STORAGE
         EventType imageEvent = new ImageEvent.ImageEventBuilder()
-                            .setFieldName(ImageEvent.MediaLibrary)
+                            .setField("mediaLibrary", ImageOperators.getImageData())
                             .setComparator(ImageEvent.UPDATED)
                             .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                             .build();
@@ -475,26 +464,26 @@ public class Examples {
         });
     }
 
-    public void facesDetectionEvent() {
-        // request android.permission.READ_EXTERNAL_STORAGE
-        EventType imageEvent = new ImageEvent.ImageEventBuilder()
-                            .setFieldName(ImageEvent.Images)
-                            .setFieldName(ImageEvent.HasFace)
-                            .setPath("/storage/emulated/0/Download/person.jpg")
-                            .setMaxNumberOfRecurrences(1)
-                            .build();
-        uqi.addEventListener(imageEvent, new ImageCallback() {
-            @Override
-            public void onEvent(ImageCallbackData imageCallbackData) {
-
-            }
-        });
-    }
+//    public void facesDetectionEvent() {
+//        // request android.permission.READ_EXTERNAL_STORAGE
+//        EventType imageEvent = new ImageEvent.ImageEventBuilder()
+//                            .setFieldName(ImageEvent.Images)
+//                            .setFieldName(ImageEvent.HasFace)
+//                            .setPath("/storage/emulated/0/Download/person.jpg")
+//                            .setMaxNumberOfRecurrences(1)
+//                            .build();
+//        uqi.addEventListener(imageEvent, new ImageCallback() {
+//            @Override
+//            public void onEvent(ImageCallbackData imageCallbackData) {
+//
+//            }
+//        });
+//    }
 
     public void fileUpdatesEvent() {
         // request android.permission.READ_EXTERNAL_STORAGE
         EventType imageEvent = new ImageEvent.ImageEventBuilder()
-                            .setFieldName(ImageEvent.FileOrFolder)
+                            .setField("file", ImageOperators.getImageData())
                             .setComparator(ImageEvent.UPDATED)
                             .setPath("/storage/emulated/0/DCIM/Camera/")
                             .setMaxNumberOfRecurrences(3)
@@ -507,53 +496,53 @@ public class Examples {
         });
     }
 
-    public void eventCollections() {
-        EventType audioEvent = new AudioEvent.AudioEventBuilder()
-                .setFieldName(AudioEvent.AvgLoudness)
-                .setComparator(AudioEvent.GTE)
-                .setThreshold(10.0)
-                .setDuration(1000)
-                .setInterval(3000)
-                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
-                .build();
-
-        EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-                                .setFieldName(GeolocationEvent.LatLon)
-                                .setComparator(GeolocationEvent.UPDATED)
-                                .setInterval(8000)
-                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
-                                .build();
-
-        EventType aggregativeEvent = new EventCollection.EventCollectionBuilder()
-                                    .and(audioEvent)
-                                    .and(locationEvent)
-                                    .build();
-        uqi.addEventListener(aggregativeEvent, new EventCollectionCallback() {
-            @Override
-            public void onEvent(AudioCallbackData audioCallbackData) {
-
-            }
-
-            @Override
-            public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-
-            }
-
-            @Override
-            public void onEvent(ContactCallbackData contactCallbackData) {
-
-            }
-
-            @Override
-            public void onEvent(MessageCallbackData messageCallbackData) {
-
-            }
-
-            @Override
-            public void onEvent(ImageCallbackData imageCallbackData) {
-
-            }
-        });
-    }
+//    public void eventCollections() {
+//        EventType audioEvent = new AudioEvent.AudioEventBuilder()
+//                .setFieldName(AudioEvent.AvgLoudness)
+//                .setComparator(AudioEvent.GTE)
+//                .setThreshold(10.0)
+//                .setDuration(1000)
+//                .setInterval(3000)
+//                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
+//                .build();
+//
+//        EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
+//                                .setFieldName(GeolocationEvent.LatLon)
+//                                .setComparator(GeolocationEvent.UPDATED)
+//                                .setInterval(8000)
+//                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
+//                                .build();
+//
+//        EventType aggregativeEvent = new EventCollection.EventCollectionBuilder()
+//                                    .and(audioEvent)
+//                                    .and(locationEvent)
+//                                    .build();
+//        uqi.addEventListener(aggregativeEvent, new EventCollectionCallback() {
+//            @Override
+//            public void onEvent(AudioCallbackData audioCallbackData) {
+//
+//            }
+//
+//            @Override
+//            public void onEvent(GeolocationCallbackData geolocationCallbackData) {
+//
+//            }
+//
+//            @Override
+//            public void onEvent(ContactCallbackData contactCallbackData) {
+//
+//            }
+//
+//            @Override
+//            public void onEvent(MessageCallbackData messageCallbackData) {
+//
+//            }
+//
+//            @Override
+//            public void onEvent(ImageCallbackData imageCallbackData) {
+//
+//            }
+//        });
+//    }
 
 }

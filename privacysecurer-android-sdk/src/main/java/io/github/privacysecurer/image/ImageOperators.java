@@ -115,4 +115,14 @@ public class ImageOperators {
     public static Function<Item, String> extractText(String imageDataField) {
         return new ImageTextExtractor(imageDataField);
     }
+
+    /**
+     * Get an abstraction expression of image data.
+     *
+     * @return the function
+     */
+    public static Function<Item, ImageData> getImageData() {
+        String imageDataField = Image.IMAGE_DATA;
+        return new ImageDataGetter(imageDataField);
+    }
 }

@@ -9,13 +9,13 @@ import io.github.privacysecurer.core.UQI;
 import io.github.privacysecurer.utils.Assertions;
 
 /**
- * Process the location postcode field in an item.
- * @param <Tout> the postcode type
+ * Process the location city field in an item.
+ * @param <Tout> the city type
  */
-abstract class PostcodeProcessor<Tout> extends ItemOperator<Tout> {
+abstract class CityProcessor<Tout> extends ItemOperator<Tout> {
     private final String latLonField;
 
-    PostcodeProcessor(String latLonField) {
+    CityProcessor(String latLonField) {
         this.latLonField = Assertions.notNull("latLonField", latLonField);
         this.addParameters(this.latLonField);
     }
@@ -24,8 +24,8 @@ abstract class PostcodeProcessor<Tout> extends ItemOperator<Tout> {
     public final Tout apply(UQI uqi, Item input) {
         LatLon latLon = input.getValueByField(this.latLonField);
         Context context = uqi.getContext();
-        return this.processPostcode(context, latLon);
+        return this.processCity(context, latLon);
     }
 
-    protected abstract Tout processPostcode(Context context, LatLon latLon);
+    protected abstract Tout processCity(Context context, LatLon latLon);
 }

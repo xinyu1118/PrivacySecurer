@@ -1,5 +1,6 @@
 package io.github.privacysecurer.location;
 
+
 import android.Manifest;
 import android.content.Context;
 import android.location.Location;
@@ -10,11 +11,9 @@ import io.github.privacysecurer.utils.Assertions;
 import io.github.privacysecurer.utils.Duration;
 import io.github.privacysecurer.utils.PermissionUtils;
 
-
 /**
  * Provide a last known location.
  */
-
 class LastKnownLocationProvider extends PStreamProvider {
 
     private static final String LOG_TAG = "[LastKnownLocationProvider]";

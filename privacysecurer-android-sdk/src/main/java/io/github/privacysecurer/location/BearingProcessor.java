@@ -1,12 +1,14 @@
 package io.github.privacysecurer.location;
 
+
 import io.github.privacysecurer.commons.ItemOperator;
 import io.github.privacysecurer.core.Item;
 import io.github.privacysecurer.core.UQI;
 import io.github.privacysecurer.utils.Assertions;
 
 /**
- * Process the bearing field in an item.
+ * Process the location bearing field in an item.
+ * @param <Tout> the bearing type
  */
 abstract class BearingProcessor<Tout> extends ItemOperator<Tout> {
     private final String bearingField;
@@ -23,5 +25,4 @@ abstract class BearingProcessor<Tout> extends ItemOperator<Tout> {
     }
 
     protected abstract Tout processBearing(Float bearing);
-
 }

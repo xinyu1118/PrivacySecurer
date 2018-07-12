@@ -1,8 +1,8 @@
 package io.github.privacysecurer.communication;
 
+
 import android.os.Build;
 import android.support.annotation.RequiresApi;
-import android.util.Log;
 
 import io.github.privacysecurer.core.Item;
 import io.github.privacysecurer.core.PStreamProvider;

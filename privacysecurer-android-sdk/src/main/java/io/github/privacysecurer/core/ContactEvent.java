@@ -14,18 +14,21 @@ import io.github.privacysecurer.communication.Call;
 import io.github.privacysecurer.communication.Contact;
 import io.github.privacysecurer.core.exceptions.PSException;
 import io.github.privacysecurer.core.purposes.Purpose;
+import io.github.privacysecurer.utils.Consts;
+
+import static io.github.privacysecurer.utils.Assertions.notNull;
 
 /**
  * Contact related events, used for setting event parameters and providing processing methods.
  */
-public class ContactEvent extends EventType {
+public class ContactEvent<TValue> extends EventType {
 
     // Field name options
-    public static final String Calls = "calls";
-    public static final String Caller = "caller";
-    public static final String Emails = "emails";
-    public static final String Contacts = "contacts";
-    public static final String Logs = "logs";
+//    public static final String Calls = "calls";
+//    public static final String Caller = "caller";
+//    public static final String Emails = "emails";
+//    public static final String Contacts = "contacts";
+//    public static final String Logs = "logs";
 
     // Operator options
     public static final String IN = "in";
@@ -47,6 +50,10 @@ public class ContactEvent extends EventType {
      * The field name of personal data.
      */
     private String fieldName;
+    /**
+     * The field value calculation function.
+     */
+    private Function<Item, TValue> fieldCalculationFunction;
     /**
      * The operator on the field value.
      */
@@ -86,8 +93,9 @@ public class ContactEvent extends EventType {
     }
 
     @Override
-    public void setFieldName(String fieldName) {
+    public <T> void setField(String fieldName, Function<Item, T> fieldCalculationFunction) {
         this.fieldName = fieldName;
+        this.fieldCalculationFunction = (Function<Item, TValue>) fieldCalculationFunction;
     }
 
     @Override
@@ -289,34 +297,15 @@ public class ContactEvent extends EventType {
         //List<Boolean> list = new ArrayList<>();
         this.context = context;
         final ContactCallbackData contactCallbackData = new ContactCallbackData();
-
-        // Judge event type
-        switch (fieldName) {
-            case Calls:
-                this.setEventType(EventType.Call_Coming_In);
-                break;
-            case Caller:
-                if (comparator == EQ)
-                    this.setEventType(EventType.Call_Check_Unwanted);
-                if (comparator == IN)
-                    this.setEventType(EventType.Call_In_List);
-                break;
-            case Emails:
-                this.setEventType(EventType.Contact_Emails_In_Lists);
-                break;
-            case Contacts:
-                this.setEventType(EventType.Contact_Lists_Updated);
-                break;
-            case Logs:
-                this.setEventType(EventType.Call_Logs_Checking);
-            default:
-                Log.d("Log", "No matchable event type, please check it again.");
-        }
         contactCallbackData.setEventType(eventType);
 
         switch (eventType) {
             case EventType.Contact_Lists_Updated:
                 periodicEvent = true;
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 context.getContentResolver().registerContentObserver(ContactsContract.Contacts.CONTENT_URI,true, contactsObserver);
                 break;
 
@@ -324,15 +313,20 @@ public class ContactEvent extends EventType {
                 periodicEvent = false;
                 boolean contactFlag = false;
 
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (lists == null) Log.d(Consts.LIB_TAG, "You haven't set the list yet, it couldn't be null.");
+
                 try {
-                    List<List<String>> contactEmails = uqi.getData(Contact.getAll(), Purpose.UTILITY("Listen to contact emails in an existing list."))
-                            .asList(Contact.EMAILS);
+                    List<List<String>> contactEmails = uqi.getData(Contact.getAll(), Purpose.UTILITY("Monitor contact emails."))
+                            .setField(fieldName, fieldCalculationFunction)
+                            .asList(fieldName);
 
                     if (contactEmails.size() != 0) {
                         for (int i = 0; i < contactEmails.size(); i++) {
                             for (int j = 0; j < contactEmails.get(i).size(); j++) {
                                 if (lists == null) {
-                                    Log.d("Log", "Please provide email lists, it's null now.");
+                                    Log.d(Consts.LIB_TAG, "Please provide email lists, it's null now.");
                                 }
                                 for (String email : lists) {
                                     if (contactEmails.get(i).get(j).equals(email)) {
@@ -343,15 +337,15 @@ public class ContactEvent extends EventType {
                             }
                         }
                         if (contactFlag) {
-                            Log.d("Log", "Contact emails in the existing list.");
+                            Log.d(Consts.LIB_TAG, "There are contact emails in a given list.");
                             contactCallbackData.setEmails(matchEmails);
                             eventCallback.setContactCallbackData(contactCallbackData);
                             setSatisfyCond();
                         } else {
-                            Log.d("Log", "Event hasn't happened yet.");
+                            Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                         }
                     } else {
-                        Log.d("Log", "No emails in contact lists, please check it.");
+                        Log.d(Consts.LIB_TAG, "No emails in contact lists, please check it.");
                     }
                 } catch (PSException e) {
                     e.printStackTrace();
@@ -361,22 +355,30 @@ public class ContactEvent extends EventType {
             case EventType.Call_Check_Unwanted:
                 periodicEvent = true;
 
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (caller == null) Log.d(Consts.LIB_TAG, "You haven't set caller phone number yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 final PStreamProvider pStreamProvider = Call.asUpdates();
-                uqi.getData(pStreamProvider, Purpose.UTILITY("Listen to unwanted incoming calls"))
-                        .filter(Call.CONTACT, caller)
-                        .ifPresent(Call.CONTACT, new Callback<String>() {
+                uqi.getData(pStreamProvider, Purpose.UTILITY("Monitor callers."))
+                        .setField(fieldName, fieldCalculationFunction)
+                        .forEach(fieldName, new Callback<String>() {
                             @Override
                             protected void onInput(String input) {
-
-                                counter++;
-                                satisfyCond = false;
-                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                    pStreamProvider.isCancelled = true;
+                                if (input.equals(caller)) {
+                                    counter++;
+                                    satisfyCond = false;
+                                    if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                        pStreamProvider.isCancelled = true;
+                                    } else {
+                                        Log.d(Consts.LIB_TAG, "The caller is from a given phone number.");
+                                        setSatisfyCond();
+                                    }
                                 } else {
-                                    Log.d("Log", "Unwanted incoming calls.");
-                                    setSatisfyCond();
+                                    Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
+                                    satisfyCond = false;
                                 }
-
                             }
                         });
                 break;
@@ -388,7 +390,7 @@ public class ContactEvent extends EventType {
                 List<Item> items;
                 List<Item> resultItems = new ArrayList<>();
                 try {
-                    items = uqi.getData(Call.getLogs(), Purpose.UTILITY("Listen to call log event."))
+                    items = uqi.getData(Call.getLogs(), Purpose.UTILITY("Monitor call logs."))
                             .asList();
                     for (Item item : items) {
                         if (item.containsField(Call.CONTACT)) {
@@ -403,115 +405,127 @@ public class ContactEvent extends EventType {
                 }
 
                 if (callFlag) {
-                    Log.d("Log", "Unwanted records from call logs.");
+                    Log.d(Consts.LIB_TAG, "There are unwanted records from call logs.");
                     contactCallbackData.setCallRecords(resultItems);
                     eventCallback.setContactCallbackData(contactCallbackData);
                     setSatisfyCond();
                 } else
-                    Log.d("Log", "Event hasn't happened yet.");
+                    Log.d(Consts.LIB_TAG, "Event hasn't happened yet.");
                 break;
 
             case EventType.Call_In_List:
                 periodicEvent = true;
 
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (lists == null) Log.d(Consts.LIB_TAG, "You haven't set the list yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 final PStreamProvider pStreamProvider1 = Call.asUpdates();
-                uqi.getData(pStreamProvider1, Purpose.UTILITY("Listen to unwanted incoming calls"))
-                        .filterList(Call.CONTACT, lists)
-                        .ifPresent(Call.CONTACT, new Callback<String>() {
+                uqi.getData(pStreamProvider1, Purpose.UTILITY("Monitor callers."))
+                        .setField(fieldName, fieldCalculationFunction)
+                        .forEach(fieldName, new Callback<String>() {
                             @Override
                             protected void onInput(String input) {
-
-                                counter++;
-                                satisfyCond = false;
-                                if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                                    pStreamProvider1.isCancelled = true;
-                                } else {
-                                    Log.d("Log", "Incoming call in the blacklist.");
-                                    contactCallbackData.setCaller(input);
-                                    eventCallback.setContactCallbackData(contactCallbackData);
-                                    setSatisfyCond();
+                                for (String list : lists) {
+                                    if (input.equals(list)) {
+                                        counter++;
+                                        satisfyCond = false;
+                                        if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
+                                            pStreamProvider1.isCancelled = true;
+                                        } else {
+                                            Log.d(Consts.LIB_TAG, "The caller is in a given list.");
+                                            contactCallbackData.setCaller(input);
+                                            eventCallback.setContactCallbackData(contactCallbackData);
+                                            setSatisfyCond();
+                                        }
+                                        break;
+                                    }
                                 }
-
                             }
                         });
                 break;
 
             // A concrete example for Event.Call_In_List
-            /*case Event.Call_From_Contacts:
-                periodicEvent = true;
-
-                UQI uqiCall = new UQI(context);
-                List<String> oneList = new ArrayList<>();
-                final PStreamProvider pStreamProvider2 = Call.asUpdates();
-
-                try {
-                    List<List<String>> contactPhones = uqi.getData(Contact.getAll(), Purpose.UTILITY("Listen to incoming contact calls"))
-                            .asList(Contact.PHONES);
-                    for (int i=0; i<contactPhones.size(); i++) {
-                        for (int j=0; j<contactPhones.get(i).size(); j++) {
-                            //Log.d("Log", contactPhones.get(i).get(j));
-                            oneList.add(contactPhones.get(i).get(j));
-                        }
-                    }
-
-                    uqiCall.getData(pStreamProvider2, Purpose.UTILITY("Listen to incoming contact calls"))
-                            .filterList(Call.CONTACT, oneList)
-                            .ifPresent(Call.CONTACT, new Callback<String>() {
-                                @Override
-                                protected void onInput(String input) {
-
-                                    counter++;
-                                    satisfyCond = false;
-                                    if (recurrence != Event.ContinuousSampling && counter > recurrence) {
-                                        pStreamProvider2.isCancelled = true;
-                                    } else {
-                                        Log.d("Log", "Incoming call from contact lists.");
-                                        psCallback.setCaller(input);
-                                        setSatisfyCond();
-                                    }
-
-                                }
-                            });
-                } catch (PSException e) {
-                    e.printStackTrace();
-                }
-                break;*/
+//            case Event.Call_From_Contacts:
+//                periodicEvent = true;
+//                UQI uqiCall = new UQI(context);
+//                List<String> oneList = new ArrayList<>();
+//                final PStreamProvider pStreamProvider2 = Call.asUpdates();
+//
+//                try {
+//                    List<List<String>> contactPhones = uqi.getData(Contact.getAll(), Purpose.UTILITY("Listen to incoming contact calls"))
+//                            .asList(Contact.PHONES);
+//                    for (int i=0; i<contactPhones.size(); i++) {
+//                        for (int j=0; j<contactPhones.get(i).size(); j++) {
+//                            //Log.d(Consts.LIB_TAG, contactPhones.get(i).get(j));
+//                            oneList.add(contactPhones.get(i).get(j));
+//                        }
+//                    }
+//
+//                    uqiCall.getData(pStreamProvider2, Purpose.UTILITY("Listen to incoming contact calls"))
+//                            .filterList(Call.CONTACT, oneList)
+//                            .ifPresent(Call.CONTACT, new Callback<String>() {
+//                                @Override
+//                                protected void onInput(String input) {
+//
+//                                    counter++;
+//                                    satisfyCond = false;
+//                                    if (recurrence != Event.ContinuousSampling && counter > recurrence) {
+//                                        pStreamProvider2.isCancelled = true;
+//                                    } else {
+//                                        Log.d(Consts.LIB_TAG, "Incoming call from contact lists.");
+//                                        psCallback.setCaller(input);
+//                                        setSatisfyCond();
+//                                    }
+//
+//                                }
+//                            });
+//                } catch (PSException e) {
+//                    e.printStackTrace();
+//                }
+//                break;
 
             case EventType.Call_Coming_In:
                 periodicEvent = true;
 
+                if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
+                if (comparator == null) Log.d(Consts.LIB_TAG, "You haven't set comparator yet, it couldn't be null.");
+                if (recurrence == null) Log.d(Consts.LIB_TAG, "You haven't set recurrence yet, it couldn't be null.");
+
                 final PStreamProvider pStreamProvider3 = Call.asUpdates();
                 uqi.getData(pStreamProvider3, Purpose.UTILITY("Listen to new calls."))
-                        .ifPresent(Call.CONTACT, new Callback<String>() {
+                        .setField(fieldName, fieldCalculationFunction)
+                        .ifPresent(fieldName, new Callback<String>() {
                             @Override
                             protected void onInput(String input) {
-
                                 counter++;
                                 satisfyCond = false;
                                 if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
                                     pStreamProvider3.isCancelled = true;
                                 } else {
-                                    Log.d("Log", "New calls arrive.");
+                                    Log.d(Consts.LIB_TAG, "New call arrives.");
                                     contactCallbackData.setCaller(input);
                                     eventCallback.setContactCallbackData(contactCallbackData);
                                     setSatisfyCond();
                                 }
-
                             }
                         });
                 break;
 
             default:
-                Log.d("Log", "No contact event matches your input, please check it.");
+                Log.d(Consts.LIB_TAG, "No contact event matches your input, please check it.");
         }
     }
 
     /**
      * Builder pattern used to construct contact related events.
      */
-    public static class ContactEventBuilder {
+    public static class ContactEventBuilder<TValue> {
         private String eventDescription;
         private String fieldName;
+        private Function<Item, TValue> fieldCalculationFunction;
+        private String functionName;
         private String comparator;
         private List<String> lists;
         private String caller;
@@ -522,8 +536,10 @@ public class ContactEvent extends EventType {
             return this;
         }
 
-        public ContactEventBuilder setFieldName(String fieldName) {
+        public <Tout> ContactEventBuilder setField(String fieldName, Function<Item, Tout> fieldCalculationFunction) {
             this.fieldName = fieldName;
+            this.fieldCalculationFunction = (Function<Item, TValue>) notNull("fieldCalculationFunction", fieldCalculationFunction);
+            this.functionName = fieldCalculationFunction.getClass().getSimpleName();
             return this;
         }
 
@@ -550,7 +566,7 @@ public class ContactEvent extends EventType {
         public EventType build() {
             ContactEvent contactEvent = new ContactEvent();
             if (fieldName != null) {
-                contactEvent.setFieldName(fieldName);
+                contactEvent.setField(fieldName, fieldCalculationFunction);
             }
 
             if (comparator != null) {
@@ -567,6 +583,23 @@ public class ContactEvent extends EventType {
 
             if (recurrence != null) {
                 contactEvent.setMaxNumberOfRecurrences(recurrence);
+            }
+
+            // Judge event type
+            switch (functionName) {
+                case "CallNumberGetter":
+                    if (comparator.equals(EQ)) contactEvent.setEventType(EventType.Call_Check_Unwanted);
+                    if (comparator.equals(IN)) contactEvent.setEventType(EventType.Call_In_List);
+                    if (comparator.equals(UPDATED)) contactEvent.setEventType(EventType.Call_Coming_In);
+                    break;
+                case "ContactEmailGetter":
+                    contactEvent.setEventType(EventType.Contact_Emails_In_Lists);
+                    break;
+                case "ContactListsGetter":
+                    contactEvent.setEventType(EventType.Contact_Lists_Updated);
+                    break;
+                default:
+                    Log.d(Consts.LIB_TAG, "No matchable event type, please check it again.");
             }
 
             return contactEvent;
@@ -587,10 +620,10 @@ public class ContactEvent extends EventType {
             counter++;
             // If the event occurrence times exceed the limitation, unregister the contactsObserver
             if (recurrence != EventType.AlwaysRepeat && counter > recurrence) {
-                //Log.d("Log", "No notification will be returned, the monitoring thread has been stopped.");
+                //Log.d(Consts.LIB_TAG, "No notification will be returned, the monitoring thread has been stopped.");
                 context.getContentResolver().unregisterContentObserver(contactsObserver);
             } else {
-                Log.d("Log","Contact lists are changed.");
+                Log.d(Consts.LIB_TAG,"Contact lists are updated.");
                 setSatisfyCond();
             }
         }

@@ -1,15 +1,15 @@
 package io.github.privacysecurer.location;
 
+
 import io.github.privacysecurer.core.Function;
 import io.github.privacysecurer.core.Item;
 import io.github.privacysecurer.utils.annotations.PSOperatorWrapper;
 
 /**
- * A helper class to access geolocation-related operators
+ * A helper class to access geolocation-related operators.
  */
 @PSOperatorWrapper
 public class GeolocationOperators {
-
 //    /**
 //     * Check if the coordinates value of a field is a location at home.
 //     *
@@ -19,6 +19,11 @@ public class GeolocationOperators {
 //    public static Function<Item, Boolean> atHome(String latLonField) {
 //        return new LocationAtHomePredicate(latLonField);
 //    }
+
+    // The LatLon destination parameter will be assigned value when
+    // the API begins to deal with geolocation distance calculation event,
+    // its initial value is given randomly.
+    public static LatLon destination = new LatLon(20.0, -40.0);
 
     /**
      * Check if the coordinates specified by a LatLon field is a location in an given circular region.
@@ -64,8 +69,8 @@ public class GeolocationOperators {
     /**
      * Get the distance between two locations (in meters).
      *
-     * @param latLonField1 the first location
-     * @param latLonField2 the second location
+     * @param latLonField1 the first location field
+     * @param latLonField2 the second location field
      * @return the function
      */
     public static Function<Item, Double> distanceBetween(String latLonField1, String latLonField2) {
@@ -73,76 +78,62 @@ public class GeolocationOperators {
     }
 
     /**
-     * Check the distance between current location and destination in meters.
-     * The difference between arriveDestination and distanceBetween method is the parameter type.
+     * Get the precise location.
      *
-     * @param latLonField the field name of current coordinate
-     * @param destination the destination
      * @return the function
      */
-    public static Function<Item, Double> arriveDestination(String latLonField, LatLon destination) {
+    public static Function<Item, LatLon> getLatLon() {
+        String latLonField = Geolocation.LAT_LON;
+        return new LocationCoordinateGetter(latLonField);
+    }
+
+    /**
+     * Get the average speed in m/s.
+     *
+     * @return the function
+     */
+    public static Function<Item, Float> calcSpeed() {
+        String speedField = Geolocation.SPEED;
+        return new LocationSpeedCalculator(speedField);
+    }
+
+    /**
+     * Calculate the distance between current location and the destination in meters.
+     *
+     * @param latLonField the coordinates field
+     * @return the function
+     */
+    public static Function<Item, Double> distanceTo(String latLonField) {
         return new LocationDestinationCalculator(latLonField, destination);
     }
 
     /**
-     * Check over speed in m/s.
+     * Get the current direction using bearing field.
      *
-     * @param speedField the field name of current speed
-     * @param threshold the speed limitation
      * @return the function
      */
-    /*public static Function<Item, Boolean> checkSpeed(String speedField, Float threshold) {
-        return new LocationSpeedPredicate(speedField, threshold);
-    }*/
-
-    /**
-     * Get the current direction using bearing.
-     *
-     * @param bearingField the horizontal direction of travel of this device
-     * @return the function
-     */
-    public static Function<Item, String> getDirection(String bearingField) {
-        return new LocationDirectionPredicate(bearingField);
+    public static Function<Item, String> getDirection() {
+        String bearingField = Geolocation.BEARING;
+        return new LocationDirectionGetter(bearingField);
     }
 
     /**
-     * Get the postcode based on latitude and longitude.
+     * Get the local postcode based on latitude and longitude.
      *
-     * @param latLonField the field name of current coordinate
+     * @param latLonField the coordinates field
      * @return the function
      */
-    public static Function<Item, String> getPostcode (String latLonField) {
-        return new LocationPostcodeOperator(latLonField);
+    public static Function<Item, String> getPostcode(String latLonField) {
+        return new LocationPostcodeGetter(latLonField);
     }
 
     /**
-     * Get the city based on latitude and longitude.
+     * Get the local city based on latitude and longitude.
      *
-     * @param latLonField the field name of current coordinate
+     * @param latLonField the coordinates field
      * @return the function
      */
-    public static Function<Item, String> getCity (String latLonField) {
-        return new LocationCityOperator(latLonField);
+    public static Function<Item, String> getCity(String latLonField) {
+        return new LocationCityGetter(latLonField);
     }
-
-
-//    /**
-//     * Get the postcode string based on the coordinates value of a field.
-//     *
-//     * @param latLonField the coordinates field
-//     * @return the function
-//     */
-//    public static Function<Item, String> asPostcode(String latLonField) {
-//        return new LocationPostcodeOperator(latLonField);
-//    }
-//
-//    /**
-//     * Get the geotag string based on the coordinates value of a field.
-//     *
-//     * @param latLonField the coordinates field
-//     * @return the function
-//     */
-//    public static Function<Item, String> asGeotag(String latLonField) {
-//        return new LocationGeoTagger(latLonField);
-//    }
 }
