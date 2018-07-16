@@ -357,12 +357,19 @@ public class GeolocationEvent<TValue> extends EventType {
         // Add interval and precise settings based on the battery level
         if (optimizationMatrix != null) {
             for (int i=0; i<optimizationMatrix.size(); i++) {
+
                 if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel &&
                         (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel) {
                     if (optimizationMatrix.get(i).get(2) != EventType.Off) {
+
                         interval = (Long) optimizationMatrix.get(i).get(2);
-                        if (optimizationMatrix.get(i).get(3) != EventType.DefaultPrecision)
-                            locationPrecision = (String) optimizationMatrix.get(i).get(3);
+
+                        if (optimizationMatrix.get(i).size() == 4) {
+                            if (optimizationMatrix.get(i).get(3) != EventType.DefaultPrecision)
+                                locationPrecision = (String) optimizationMatrix.get(i).get(3);
+                            else
+                                locationPrecision = Geolocation.LEVEL_NEIGHBORHOOD;
+                        }
                     }
                     else {
                         // get current charging status
@@ -387,7 +394,7 @@ public class GeolocationEvent<TValue> extends EventType {
         }
 
         switch (eventType) {
-            case EventType.Geolocation_Fence:
+            case EventType.Geolocation_GeoFence:
                 periodicEvent = true;
 
                 if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
@@ -547,7 +554,7 @@ public class GeolocationEvent<TValue> extends EventType {
 //                        });
                 break;
 
-            case EventType.Geolocation_Check_Place:
+            case EventType.Geolocation_Check_Location_In_Places:
                 periodicEvent = true;
                 // Get the latitude and longitude from the place name
                 Geocoder geocoder = new Geocoder(context);
@@ -556,7 +563,7 @@ public class GeolocationEvent<TValue> extends EventType {
 
                 try {
                     addresses = geocoder.getFromLocationName(placeName, 5);
-                    if (addresses == null) return;
+                    if (addresses == null) return; // crash
                     Address location = addresses.get(0);
                     latLon = new LatLon(location.getLatitude(), location.getLongitude());
                 } catch (IOException e) {
@@ -694,7 +701,7 @@ public class GeolocationEvent<TValue> extends EventType {
 //                        });
                 break;
 
-            case EventType.Geolocation_Updated:
+            case EventType.Geolocation_Location_Updated:
                 periodicEvent = true;
 
                 if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
@@ -850,7 +857,7 @@ public class GeolocationEvent<TValue> extends EventType {
                         });
                 break;
 
-            case EventType.Geolocation_Change_City:
+            case EventType.Geolocation_City_Change:
                 periodicEvent = true;
 
                 if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
@@ -885,7 +892,7 @@ public class GeolocationEvent<TValue> extends EventType {
                         });
                 break;
 
-            case EventType.Geolocation_Change_Postcode:
+            case EventType.Geolocation_Postcode_Change:
                 periodicEvent = true;
 
                 if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
@@ -921,7 +928,7 @@ public class GeolocationEvent<TValue> extends EventType {
                         });
                 break;
 
-            case EventType.Geolocation_Turning:
+            case EventType.Geolocation_Making_Turns:
                 periodicEvent = true;
 
                 if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
@@ -1157,27 +1164,35 @@ public class GeolocationEvent<TValue> extends EventType {
             return this;
         }
 
-        public GeolocationEventBuilder setLocationPrecision(String locationPrecision) {
-            this.locationPrecision = locationPrecision;
+//        public GeolocationEventBuilder setLocationPrecision(String locationPrecision) {
+//            this.locationPrecision = locationPrecision;
+//            return this;
+//        }
+
+        public GeolocationEventBuilder setSamplingMode(long interval, String...locationPrecision) {
+            this.interval = interval;
+            if (locationPrecision.length == 1)
+                this.locationPrecision = locationPrecision[0];
             return this;
         }
 
-        public GeolocationEventBuilder setInterval(long interval) {
-            this.interval = interval;
-            return this;
-        }
+//        public GeolocationEventBuilder setInterval(long interval) {
+//            this.interval = interval;
+//            return this;
+//        }
 
         public GeolocationEventBuilder setMaxNumberOfRecurrences(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
 
-        public GeolocationEventBuilder addOptimizationConstraints(int upperBound, int lowerBound, long intervalInSections, String precisionInSections) {
+        public GeolocationEventBuilder addOptimizationConstraints(int upperBound, int lowerBound, long samplingIntervalMode, String...samplingPrecisionMode) {
             List rowVector = new ArrayList<>();
             rowVector.add(upperBound);
             rowVector.add(lowerBound);
-            rowVector.add(intervalInSections);
-            rowVector.add(precisionInSections);
+            rowVector.add(samplingIntervalMode);
+            for (String arg : samplingPrecisionMode)
+                rowVector.add(arg);
             optimizationMatrix.add(rowVector);
             return this;
         }
@@ -1232,25 +1247,25 @@ public class GeolocationEvent<TValue> extends EventType {
             switch (functionName) {
                 case "LocationCoordinateGetter":
                     if (placeName != null) {
-                        geolocationEvent.setEventType(EventType.Geolocation_Check_Place);
+                        geolocationEvent.setEventType(EventType.Geolocation_Check_Location_In_Places);
                     } else {
                         if (comparator.equals(UPDATED))
-                            geolocationEvent.setEventType(EventType.Geolocation_Updated);
+                            geolocationEvent.setEventType(EventType.Geolocation_Location_Updated);
                         else
-                            geolocationEvent.setEventType(EventType.Geolocation_Fence);
+                            geolocationEvent.setEventType(EventType.Geolocation_GeoFence);
                     }
                     break;
                 case "LocationSpeedCalculator":
                     geolocationEvent.setEventType(EventType.Geolocation_Check_Speed);
                     break;
                 case "LocationCityGetter":
-                    geolocationEvent.setEventType(EventType.Geolocation_Change_City);
+                    geolocationEvent.setEventType(EventType.Geolocation_City_Change);
                     break;
                 case "LocationPostcodeGetter":
-                    geolocationEvent.setEventType(EventType.Geolocation_Change_Postcode);
+                    geolocationEvent.setEventType(EventType.Geolocation_Postcode_Change);
                     break;
                 case "LocationDirectionGetter":
-                    geolocationEvent.setEventType(EventType.Geolocation_Turning);
+                    geolocationEvent.setEventType(EventType.Geolocation_Making_Turns);
                     break;
                 case "LocationDestinationCalculator":
                     geolocationEvent.setEventType(EventType.Geolocation_Arrive_Destination);

@@ -342,7 +342,7 @@ public class AudioEvent<TValue> extends EventType {
 
         // Handle events according to event type
         switch (eventType) {
-            case EventType.Audio_Oneoff_Event:
+            case EventType.Audio_OneTime_Event:
                 periodicEvent = false;
 
                 if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
@@ -410,7 +410,7 @@ public class AudioEvent<TValue> extends EventType {
                 eventCallback.setAudioCallbackData(audioCallbackData);
                 break;
 
-            case EventType.Audio_Periodic_Event:
+            case EventType.Audio_Repeated_Event:
                 periodicEvent = true;
 
                 if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
@@ -424,13 +424,18 @@ public class AudioEvent<TValue> extends EventType {
                 BatteryManager bm = (BatteryManager)context.getSystemService(BATTERY_SERVICE);
                 int batteryLevel = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
 
-                // Add interval settings based on the battery level
+                // Add duration or interval settings based on the battery level
                 if (optimizationMatrix != null) {
                     for (int i=0; i<optimizationMatrix.size(); i++) {
+
                         if ((Integer)optimizationMatrix.get(i).get(0) >= batteryLevel &&
                                 (Integer)optimizationMatrix.get(i).get(1) <= batteryLevel) {
                             if (optimizationMatrix.get(i).get(2) != EventType.Off) {
                                 interval = (Long)optimizationMatrix.get(i).get(2);
+
+                                if (optimizationMatrix.get(i).size() == 4)
+                                    duration = (Long)optimizationMatrix.get(i).get(3);
+
                             }
                             else {
                                 // get current charging status
@@ -453,7 +458,7 @@ public class AudioEvent<TValue> extends EventType {
                         }
                     }
                 }
-//
+
                 final PStreamProvider pStreamProvider = Audio.recordPeriodic(duration, interval);
                 uqi.getData(pStreamProvider, Purpose.UTILITY("Listen to "+fieldName+" periodically."))
                         .setField(fieldName, fieldCalculationFunction)
@@ -1076,29 +1081,48 @@ public class AudioEvent<TValue> extends EventType {
             return this;
         }
 
-        public AudioEventBuilder setDuration(long duration) {
-            this.duration = duration;
+        public AudioEventBuilder setSamplingMode(long...intervalOrDuration) {
+            if (intervalOrDuration.length == 1) this.duration = intervalOrDuration[0];
+            if (intervalOrDuration.length == 2) {
+                this.interval = intervalOrDuration[0];
+                this.duration = intervalOrDuration[1];
+            }
             return this;
         }
 
-        public AudioEventBuilder setInterval(long interval) {
-            this.interval = interval;
-            return this;
-        }
+//        public AudioEventBuilder setDuration(long duration) {
+//            this.duration = duration;
+//            return this;
+//        }
+//
+//        public AudioEventBuilder setInterval(long interval) {
+//            this.interval = interval;
+//            return this;
+//        }
 
         public AudioEventBuilder setMaxNumberOfRecurrences(Integer recurrence) {
             this.recurrence = recurrence;
             return this;
         }
 
-        public AudioEventBuilder addOptimizationConstraints(int upperBound, int lowerBound, long intervalInSections) {
+        public AudioEventBuilder addOptimizationConstraints (int upperBound, int lowerBound, long...samplingMode) {
             List rowVector = new ArrayList<>();
             rowVector.add(upperBound);
             rowVector.add(lowerBound);
-            rowVector.add(intervalInSections);
+            for (long arg : samplingMode) {
+                rowVector.add(arg);
+            }
             optimizationMatrix.add(rowVector);
             return this;
         }
+//        public AudioEventBuilder addOptimizationConstraints(int upperBound, int lowerBound, long intervalInSections) {
+//            List rowVector = new ArrayList<>();
+//            rowVector.add(upperBound);
+//            rowVector.add(lowerBound);
+//            rowVector.add(intervalInSections);
+//            optimizationMatrix.add(rowVector);
+//            return this;
+//        }
 
         public EventType build() {
             AudioEvent audioEvent = new AudioEvent();
@@ -1133,9 +1157,9 @@ public class AudioEvent<TValue> extends EventType {
 
             // Judge event type
             if (recurrence == 1)
-                audioEvent.setEventType(EventType.Audio_Oneoff_Event);
+                audioEvent.setEventType(EventType.Audio_OneTime_Event);
             else
-                audioEvent.setEventType(EventType.Audio_Periodic_Event);
+                audioEvent.setEventType(EventType.Audio_Repeated_Event);
 
             return audioEvent;
         }

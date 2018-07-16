@@ -330,7 +330,7 @@ public class ImageEvent<TValue> extends EventType {
                 }
                 break;
 
-            case Image_File_Updated:
+            case Image_FileOrFolder_Updated:
                 periodicEvent = true;
 
                 if (fieldName == null) Log.d(Consts.LIB_TAG, "You haven't set field yet, it couldn't be null.");
@@ -414,7 +414,7 @@ public class ImageEvent<TValue> extends EventType {
             switch (functionName) {
                 case "ImageDataGetter":
                     if (path != null)
-                        imageEvent.setEventType(EventType.Image_File_Updated);
+                        imageEvent.setEventType(EventType.Image_FileOrFolder_Updated);
                     else
                         imageEvent.setEventType(EventType.Image_Content_Updated);
                     break;

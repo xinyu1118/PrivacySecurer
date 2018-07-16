@@ -11,14 +11,14 @@ import java.util.List;
  */
 public abstract class EventType {
 
-    public static final Integer AlwaysRepeat = 0;
+    public static final Integer AlwaysRepeat = -1;
 
     public static final Long Off = new Integer(0).longValue();
 
     public static final String DefaultPrecision = "defaultPrecision";
 
-    public static final String Audio_Periodic_Event = "audioPeriodicEvent";
-    public static final String Audio_Oneoff_Event = "audioOneoffEvent";
+    public static final String Audio_Repeated_Event = "audioRepeatedEvent";
+    public static final String Audio_OneTime_Event = "audioOneTimeEvent";
 
     /**
      * Check high loudness recorded from microphone once,
@@ -62,18 +62,18 @@ public abstract class EventType {
      * Keep monitoring if a user is entering/leaving a specified circle area,
      * which is defined by the center latitude, longitude and radius.
      */
-    public static final String Geolocation_Fence = "geoLocationFence";
+    public static final String Geolocation_GeoFence = "geoLocationGeoFence";
 
     /**
      * Check the current coordinate in or out of a specific place,
      * such as carnegie mellon university.
      */
-    public static final String Geolocation_Check_Place = "geoLocationCheckPlace";
+    public static final String Geolocation_Check_Location_In_Places = "geoLocationCheckLocationInPlaces";
 
     /**
      * Monitor the latitude and longitude updates, different location precision provided.
      */
-    public static final String Geolocation_Updated = "geolocationUpdated";
+    public static final String Geolocation_Location_Updated = "geolocationLocationUpdated";
 
     /**
      * Keep monitoring over speed event, speed is measured in m/s.
@@ -83,19 +83,19 @@ public abstract class EventType {
     /**
      * Keep monitoring local city changes.
      */
-    public static final String Geolocation_Change_City = "geoLocationChangeCity";
+    public static final String Geolocation_City_Change = "geoLocationCityChange";
 
     /**
      * Keep monitoring local postcode changes.
      */
-    public static final String Geolocation_Change_Postcode = "geoLocationChangePostcode";
+    public static final String Geolocation_Postcode_Change = "geoLocationPostcodeChange";
 
     /**
      * Monitor the direction changes e.g. turn left or right using bearing.
      * Bearing is the horizontal direction of travel of this device, and is not related to the device orientation.
      * It is guaranteed to be in the range (0.0, 360.0].
      */
-    public static final String Geolocation_Turning = "geolocationTurning";
+    public static final String Geolocation_Making_Turns = "geolocationMakingTurns";
 
     /**
      * Keep monitoring if a user has arrived a destination,
@@ -181,12 +181,12 @@ public abstract class EventType {
     /**
      * Monitor a folder content changes, including creating, deleting, modifying etc.
      */
-    public static final String Image_File_Updated = "imageFolderUpdated";
+    public static final String Image_FileOrFolder_Updated = "imageFileOrFolderUpdated";
 
     /**
      * Deal with multiple events, 'and', 'or', and 'not' logic operations are supported.
      */
-    public static final String Aggregative_Event = "aggregativeEvent";
+    public static final String Event_Collections = "eventCollections";
 
     // if the event happens periodically, its value turns true by subclasses, otherwise false.
     public boolean periodicEvent;

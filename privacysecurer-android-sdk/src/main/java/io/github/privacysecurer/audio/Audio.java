@@ -25,6 +25,19 @@ public class Audio extends Item {
     @PSItemField(type = AudioData.class)
     public static final String AUDIO_DATA = "audio_data";
 
+    /** Low sampling duration, every 30s. */
+    public static final long DURATION_LOW = 30*1000;
+    /** Medium sampling duration, every 1min. */
+    public static final long DURATION_MEDIUM = 60*1000;
+    /** High sampling duration, every 5min. */
+    public static final long DURATION_HIGH = 5*60*1000;
+    /** Low sampling interval, every 1min. */
+    public static final long INTERVAL_LOW = 60*1000;
+    /** Medium sampling interval, every 5min. */
+    public static final long INTERVAL_MEDIUM = 5*60*1000;
+    /** High sampling interval, every 10min. */
+    public static final long INTERVAL_HIGH = 10*60*1000;
+
     Audio(long timestamp, AudioData audioData) {
         this.setFieldValue(TIMESTAMP, timestamp);
         this.setFieldValue(AUDIO_DATA, audioData);

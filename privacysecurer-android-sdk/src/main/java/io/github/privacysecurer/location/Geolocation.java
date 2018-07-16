@@ -6,6 +6,7 @@ import android.location.Location;
 import io.github.privacysecurer.core.Item;
 import io.github.privacysecurer.core.PStreamProvider;
 import io.github.privacysecurer.utils.Globals;
+import io.github.privacysecurer.utils.PermissionUtils;
 import io.github.privacysecurer.utils.annotations.PSItem;
 import io.github.privacysecurer.utils.annotations.PSItemField;
 
@@ -77,6 +78,13 @@ public class Geolocation extends Item {
     /** Exact level. This level's accuracy is about 10 meters. */
     public static final String LEVEL_EXACT = "exact";
     static final int ACCURACY_EXACT = 10;
+
+    /** Low sampling interval, every 1 min. */
+    public static final long INTERVAL_LOW = 60*1000;
+    /** Medium sampling interval, every 5 mins. */
+    public static final long INTERVAL_MEDIUM = 5*60*1000;
+    /** High sampling interval, every 10 mins. */
+    public static final long INTERVAL_HIGH = 10*60*1000;
 
     Geolocation(Location location) {
         this.setFieldValue(TIMESTAMP, location.getTime());

@@ -19,7 +19,7 @@ public class MainActivity extends AppCompatActivity {
         //examples.MaxLoudnessMonitorEvent();
 
         //examples.geoFenceEvent();
-        examples.placeCheckingEvent();
+        //examples.placeCheckingEvent();
         //examples.locationUpdatesEvent();
         //examples.overspeedEvent();
         //examples.cityUpdatesEvents();

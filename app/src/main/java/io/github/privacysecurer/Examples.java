@@ -22,6 +22,8 @@ import io.github.privacysecurer.core.AudioEvent;
 import io.github.privacysecurer.core.ContactCallback;
 import io.github.privacysecurer.core.ContactCallbackData;
 import io.github.privacysecurer.core.ContactEvent;
+import io.github.privacysecurer.core.EventCollection;
+import io.github.privacysecurer.core.EventCollectionCallback;
 import io.github.privacysecurer.core.EventType;
 
 import io.github.privacysecurer.core.GeolocationCallback;
@@ -60,10 +62,11 @@ public class Examples {
                 .setField("avgloudness", AudioOperators.calcAvgLoudness(Audio.AUDIO_DATA))
                 .setComparator(AudioEvent.GTE)
                 .setThreshold(30.0)
-                .setDuration(1000)
-                .setInterval(3000)
+                //.setDuration(1000)
+                //.setInterval(3000)
+                .setSamplingMode(3000, 1000)
                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
-                .addOptimizationConstraints(100, 50, 5000)
+                .addOptimizationConstraints(100, 50, 5000, 2000)
                 .addOptimizationConstraints(50, 15, 10000)
                 .addOptimizationConstraints(15, 0, EventType.Off)
                 .build();
@@ -83,7 +86,8 @@ public class Examples {
                                 .setField("maxLoudness", AudioOperators.calcMaxLoudness(Audio.AUDIO_DATA))
                                 .setComparator(AudioEvent.LTE)
                                 .setThreshold(50.0)
-                                .setDuration(1000)
+                                //.setDuration(1000)
+                                .setSamplingMode(1000)
                                 .setMaxNumberOfRecurrences(1)
                                 .build();
         uqi.addEventListener(audioEvent, new AudioCallback() {
@@ -106,11 +110,11 @@ public class Examples {
                                 .setLatitude(40.436839)
                                 .setLongitude(-79.951097)
                                 .setRadius(20.0)
-                                .setInterval(3000)
+                                .setSamplingMode(3000)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .addOptimizationConstraints(100, 50, 5000, EventType.DefaultPrecision)
                                 .addOptimizationConstraints(50, 15, 10000, Geolocation.LEVEL_BUILDING)
-                                .addOptimizationConstraints(15, 0, EventType.Off, EventType.DefaultPrecision)
+                                .addOptimizationConstraints(15, 0, EventType.Off)
                                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
             @Override
@@ -127,7 +131,6 @@ public class Examples {
                                 .setComparator(GeolocationEvent.IN)
                                 .setPlaceName("23 Oakland Square")
                                 .setRadius(100.0)
-                                //.setInterval(3000)
                                 .setMaxNumberOfRecurrences(1)
                                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
@@ -142,11 +145,11 @@ public class Examples {
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                 .setField("location", GeolocationOperators.getLatLon())
                 .setComparator(GeolocationEvent.UPDATED)
-                .setInterval(3000)
+                .setSamplingMode(3000)
                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                 .addOptimizationConstraints(100, 50, 100000, Geolocation.LEVEL_NEIGHBORHOOD)
                 .addOptimizationConstraints(50, 15, 60*1000, Geolocation.LEVEL_CITY)
-                .addOptimizationConstraints(15, 0, 90*1000, EventType.DefaultPrecision)
+                .addOptimizationConstraints(15, 0, EventType.Off)
                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
             @Override
@@ -163,8 +166,7 @@ public class Examples {
                 .setField("speed", GeolocationOperators.calcSpeed())
                 .setComparator(GeolocationEvent.GTE)
                 .setThreshold(0.1)
-                .setInterval(3000)
-                .setLocationPrecision(Geolocation.LEVEL_EXACT)
+                .setSamplingMode(3000, Geolocation.LEVEL_EXACT)
                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
@@ -180,7 +182,7 @@ public class Examples {
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setField("city", GeolocationOperators.getCity(Geolocation.LAT_LON))
                                 .setComparator(GeolocationEvent.UPDATED)
-                                .setInterval(3000)
+                                .setSamplingMode(3000)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
@@ -196,8 +198,7 @@ public class Examples {
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setField("postcode", GeolocationOperators.getPostcode(Geolocation.LAT_LON))
                                 .setComparator(GeolocationEvent.UPDATED)
-                                .setInterval(3000)
-                                .setLocationPrecision(Geolocation.LEVEL_BUILDING)
+                                .setSamplingMode(3000, Geolocation.LEVEL_BUILDING)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
@@ -213,8 +214,7 @@ public class Examples {
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                                 .setField("direction", GeolocationOperators.getDirection())
                                 .setComparator(GeolocationEvent.UPDATED)
-                                .setInterval(3000)
-                                .setLocationPrecision(Geolocation.LEVEL_EXACT)
+                                .setSamplingMode(3000, Geolocation.LEVEL_EXACT)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
@@ -233,8 +233,7 @@ public class Examples {
                                 .setLongitude(-79.945534)
                                 .setComparator(GeolocationEvent.LTE)
                                 .setThreshold(20.0)
-                                .setInterval(3000)
-                                .setLocationPrecision(Geolocation.LEVEL_EXACT)
+                                .setSamplingMode(3000, Geolocation.LEVEL_EXACT)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
@@ -250,7 +249,7 @@ public class Examples {
         EventType callEvent = new ContactEvent.ContactEventBuilder()
                 .setField("caller", CallOperators.callerIdentification())
                 .setComparator(ContactEvent.EQ)
-                .setCaller("8618515610518")
+                .setPhoneNumber("8618515610518")
                 .setMaxNumberOfRecurrences(3)
                 .build();
         uqi.addEventListener(callEvent, new ContactCallback() {
@@ -289,7 +288,7 @@ public class Examples {
         EventType callEvent = new ContactEvent.ContactEventBuilder()
                             .setField("caller", CallOperators.callerIdentification())
                             .setComparator(ContactEvent.IN)
-                            .setLists(blacklist)
+                            .setContactList(blacklist)
                             .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                             .build();
         uqi.addEventListener(callEvent, new ContactCallback() {
@@ -352,7 +351,7 @@ public class Examples {
         EventType contactEvent = new ContactEvent.ContactEventBuilder()
                                 .setField("emails", ContactOperators.getContactEmails())
                                 .setComparator(ContactEvent.IN)
-                                .setLists(emailLists)
+                                .setContactList(emailLists)
                                 .setMaxNumberOfRecurrences(1)
                                 .build();
         uqi.addEventListener(contactEvent, new ContactCallback() {
@@ -374,7 +373,7 @@ public class Examples {
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
                                 .setField("sender", MessageOperators.getMessagePhones())
                                 .setComparator(MessageEvent.EQ)
-                                .setCaller("8618515610518")
+                                .setPhoneNumber("8618515610518")
                                 //.setCaller("15555215556")
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
@@ -410,7 +409,7 @@ public class Examples {
         EventType messageEvent = new MessageEvent.MessageEventBuilder()
                                 .setField("sender", MessageOperators.getMessagePhones())
                                 .setComparator(MessageEvent.IN)
-                                .setLists(blacklist)
+                                .setContactList(blacklist)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(messageEvent, new MessageCallback() {
@@ -496,53 +495,54 @@ public class Examples {
         });
     }
 
-//    public void eventCollections() {
-//        EventType audioEvent = new AudioEvent.AudioEventBuilder()
-//                .setFieldName(AudioEvent.AvgLoudness)
-//                .setComparator(AudioEvent.GTE)
-//                .setThreshold(10.0)
-//                .setDuration(1000)
-//                .setInterval(3000)
-//                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
-//                .build();
-//
-//        EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
-//                                .setFieldName(GeolocationEvent.LatLon)
-//                                .setComparator(GeolocationEvent.UPDATED)
-//                                .setInterval(8000)
-//                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
-//                                .build();
-//
-//        EventType aggregativeEvent = new EventCollection.EventCollectionBuilder()
-//                                    .and(audioEvent)
-//                                    .and(locationEvent)
-//                                    .build();
-//        uqi.addEventListener(aggregativeEvent, new EventCollectionCallback() {
-//            @Override
-//            public void onEvent(AudioCallbackData audioCallbackData) {
-//
-//            }
-//
-//            @Override
-//            public void onEvent(GeolocationCallbackData geolocationCallbackData) {
-//
-//            }
-//
-//            @Override
-//            public void onEvent(ContactCallbackData contactCallbackData) {
-//
-//            }
-//
-//            @Override
-//            public void onEvent(MessageCallbackData messageCallbackData) {
-//
-//            }
-//
-//            @Override
-//            public void onEvent(ImageCallbackData imageCallbackData) {
-//
-//            }
-//        });
-//    }
+    public void eventCollections() {
+        EventType audioEvent = new AudioEvent.AudioEventBuilder()
+                .setField("avgLoudness", AudioOperators.calcAvgLoudness(Audio.AUDIO_DATA))
+                .setComparator(AudioEvent.GTE)
+                .setThreshold(10.0)
+                .setSamplingMode(3000, 1000)
+                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
+                .build();
+
+        EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
+                                .setField("location", GeolocationOperators.getLatLon())
+                                .setComparator(GeolocationEvent.UPDATED)
+                                .setSamplingMode(8000)
+                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
+                                .build();
+
+        EventType eventCollections = new EventCollection.EventCollectionBuilder()
+                                    .and(audioEvent)
+                                    .and(locationEvent)
+                                    .build();
+        uqi.addEventListener(eventCollections, new EventCollectionCallback() {
+
+
+            @Override
+            public void onEvent(AudioCallbackData audioCallbackData) {
+
+            }
+
+            @Override
+            public void onEvent(GeolocationCallbackData geolocationCallbackData) {
+
+            }
+
+            @Override
+            public void onEvent(ContactCallbackData contactCallbackData) {
+
+            }
+
+            @Override
+            public void onEvent(MessageCallbackData messageCallbackData) {
+
+            }
+
+            @Override
+            public void onEvent(ImageCallbackData imageCallbackData) {
+
+            }
+        });
+    }
 
 }

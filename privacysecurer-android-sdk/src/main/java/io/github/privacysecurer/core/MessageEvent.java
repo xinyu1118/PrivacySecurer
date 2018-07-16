@@ -474,12 +474,12 @@ public class MessageEvent<TValue> extends EventType {
             return this;
         }
 
-        public MessageEventBuilder setCaller(String caller) {
+        public MessageEventBuilder setPhoneNumber(String caller) {
             this.caller = caller;
             return this;
         }
 
-        public MessageEventBuilder setLists(List<String> lists) {
+        public MessageEventBuilder setContactList(List<String> lists) {
             this.lists = lists;
             return this;
         }

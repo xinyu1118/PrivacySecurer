@@ -548,12 +548,12 @@ public class ContactEvent<TValue> extends EventType {
             return this;
         }
 
-        public ContactEventBuilder setLists(List<String> lists) {
+        public ContactEventBuilder setContactList(List<String> lists) {
             this.lists = lists;
             return this;
         }
 
-        public ContactEventBuilder setCaller(String caller) {
+        public ContactEventBuilder setPhoneNumber(String caller) {
             this.caller = caller;
             return this;
         }

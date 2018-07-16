@@ -247,7 +247,7 @@ public class EventCollection extends EventType {
 
     @Override
     public void handle(Context context, EventCallback eventCallback) {
-        this.setEventType(EventType.Aggregative_Event);
+        this.setEventType(EventType.Event_Collections);
 
          /*
          * Deal with logic 'and' operation for multiple events
