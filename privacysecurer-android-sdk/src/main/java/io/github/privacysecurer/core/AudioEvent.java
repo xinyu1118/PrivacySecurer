@@ -170,12 +170,12 @@ public class AudioEvent<TValue> extends EventType {
     }
 
     @Override
-    public void setThreshold(Double threshold) {
+    public void setFieldConstraints(Double threshold) {
         this.threshold = threshold;
     }
 
     @Override
-    public Double getThreshold() {
+    public Double getFieldConstraints() {
         return this.threshold;
     }
 
@@ -487,7 +487,7 @@ public class AudioEvent<TValue> extends EventType {
                                     case LTE:
                                         if (fieldValue <= threshold) {
                                             counter ++;
-                                            if (recurrence != null && counter > recurrence)
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence)
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d(Consts.LIB_TAG, fieldName+" is lower than or equal to the threshold.");
@@ -503,7 +503,7 @@ public class AudioEvent<TValue> extends EventType {
                                     case GT:
                                         if (fieldValue > threshold) {
                                             counter ++;
-                                            if (recurrence != null && counter > recurrence)
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence)
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d(Consts.LIB_TAG, fieldName+" is greater than the threshold.");
@@ -519,7 +519,7 @@ public class AudioEvent<TValue> extends EventType {
                                     case LT:
                                         if (fieldValue < threshold) {
                                             counter ++;
-                                            if (recurrence != null && counter > recurrence)
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence)
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d(Consts.LIB_TAG, fieldName+" is lower than the threshold.");
@@ -535,7 +535,7 @@ public class AudioEvent<TValue> extends EventType {
                                     case EQ:
                                         if (fieldValue.equals(threshold)) {
                                             counter ++;
-                                            if (recurrence != null && counter > recurrence)
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence)
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d(Consts.LIB_TAG, fieldName+" is equal to the threshold.");
@@ -551,7 +551,7 @@ public class AudioEvent<TValue> extends EventType {
                                     case NEQ:
                                         if (!fieldValue.equals(threshold)) {
                                             counter ++;
-                                            if (recurrence != null && counter > recurrence)
+                                            if (recurrence != EventType.AlwaysRepeat && counter > recurrence)
                                                 pStreamProvider.isCancelled = true;
                                             else {
                                                 Log.d(Consts.LIB_TAG, fieldName+" isn't equal to the threshold.");
@@ -1076,7 +1076,7 @@ public class AudioEvent<TValue> extends EventType {
             return this;
         }
 
-        public AudioEventBuilder setThreshold(Double threshold) {
+        public AudioEventBuilder setFieldConstraints(Double threshold) {
             this.threshold = threshold;
             return this;
         }
@@ -1136,7 +1136,7 @@ public class AudioEvent<TValue> extends EventType {
             }
 
             if (threshold != null) {
-                audioEvent.setThreshold(threshold);
+                audioEvent.setFieldConstraints(threshold);
             }
 
             if (duration != 0) {

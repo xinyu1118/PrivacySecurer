@@ -137,12 +137,12 @@ public class MessageEvent<TValue> extends EventType {
     }
 
     @Override
-    public void setThreshold(Double threshold) {
+    public void setFieldConstraints(Double threshold) {
 
     }
 
     @Override
-    public Double getThreshold() {
+    public Double getFieldConstraints() {
         return null;
     }
 

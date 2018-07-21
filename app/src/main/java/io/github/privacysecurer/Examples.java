@@ -60,15 +60,13 @@ public class Examples {
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
                 .setEventDescription("checking AvgLoudness")
                 .setField("avgloudness", AudioOperators.calcAvgLoudness(Audio.AUDIO_DATA))
-                .setComparator(AudioEvent.GTE)
-                .setThreshold(30.0)
-                //.setDuration(1000)
-                //.setInterval(3000)
-                .setSamplingMode(3000, 1000)
+                .setComparator(AudioEvent.LTE)
+                .setFieldConstraints(30.0)
+                .setSamplingMode(10000, 1000)
                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
-                .addOptimizationConstraints(100, 50, 5000, 2000)
-                .addOptimizationConstraints(50, 15, 10000)
-                .addOptimizationConstraints(15, 0, EventType.Off)
+//                .addOptimizationConstraints(100, 50, 5000, 2000)
+//                .addOptimizationConstraints(50, 15, 10000)
+//                .addOptimizationConstraints(15, 0, EventType.Off)
                 .build();
         uqi.addEventListener(audioEvent, new AudioCallback() {
             @Override
@@ -85,7 +83,7 @@ public class Examples {
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
                                 .setField("maxLoudness", AudioOperators.calcMaxLoudness(Audio.AUDIO_DATA))
                                 .setComparator(AudioEvent.LTE)
-                                .setThreshold(50.0)
+                                .setFieldConstraints(50.0)
                                 //.setDuration(1000)
                                 .setSamplingMode(1000)
                                 .setMaxNumberOfRecurrences(1)
@@ -130,8 +128,9 @@ public class Examples {
                                 .setField("location", GeolocationOperators.getLatLon())
                                 .setComparator(GeolocationEvent.IN)
                                 .setPlaceName("23 Oakland Square")
-                                .setRadius(100.0)
-                                .setMaxNumberOfRecurrences(1)
+                                //.setRadius(100.0)
+                                .setSamplingMode(10000)
+                                .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
         uqi.addEventListener(locationEvent, new GeolocationCallback() {
             @Override
@@ -165,7 +164,7 @@ public class Examples {
         EventType locationEvent = new GeolocationEvent.GeolocationEventBuilder()
                 .setField("speed", GeolocationOperators.calcSpeed())
                 .setComparator(GeolocationEvent.GTE)
-                .setThreshold(0.1)
+                .setFieldConstraints(0.1)
                 .setSamplingMode(3000, Geolocation.LEVEL_EXACT)
                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                 .build();
@@ -232,7 +231,7 @@ public class Examples {
                                 .setLatitude(40.443277)
                                 .setLongitude(-79.945534)
                                 .setComparator(GeolocationEvent.LTE)
-                                .setThreshold(20.0)
+                                .setFieldConstraints(20.0)
                                 .setSamplingMode(3000, Geolocation.LEVEL_EXACT)
                                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                                 .build();
@@ -499,7 +498,7 @@ public class Examples {
         EventType audioEvent = new AudioEvent.AudioEventBuilder()
                 .setField("avgLoudness", AudioOperators.calcAvgLoudness(Audio.AUDIO_DATA))
                 .setComparator(AudioEvent.GTE)
-                .setThreshold(10.0)
+                .setFieldConstraints(10.0)
                 .setSamplingMode(3000, 1000)
                 .setMaxNumberOfRecurrences(EventType.AlwaysRepeat)
                 .build();

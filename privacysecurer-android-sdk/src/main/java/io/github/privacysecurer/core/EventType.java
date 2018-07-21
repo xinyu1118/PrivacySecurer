@@ -11,7 +11,7 @@ import java.util.List;
  */
 public abstract class EventType {
 
-    public static final Integer AlwaysRepeat = -1;
+    public static final Integer AlwaysRepeat = 0;
 
     public static final Long Off = new Integer(0).longValue();
 
@@ -215,9 +215,9 @@ public abstract class EventType {
 
     public abstract Integer getMaxNumberOfRecurrences();
 
-    public abstract void setThreshold(Double threshold);
+    public abstract void setFieldConstraints(Double threshold);
 
-    public abstract Double getThreshold();
+    public abstract Double getFieldConstraints();
 
     public abstract void setLocationPrecision(String locationPrecision);
 
